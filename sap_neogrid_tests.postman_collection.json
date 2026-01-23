@@ -1,0 +1,145 @@
+{
+    "info": {
+        "_postman_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        "name": "Testes Integração Neogrid x SAP",
+        "description": "Coleção para validar correção de ItemCode e fluxo da integração.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. SAP Service Layer - Login",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var jsonData = pm.response.json();",
+                            "if (jsonData.SessionId) {",
+                            "    pm.collectionVariables.set(\"B1SESSION\", jsonData.SessionId);",
+                            "    console.log(\"SessionId saved: \" + jsonData.SessionId);",
+                            "} else {",
+                            "    console.error(\"Login failed, SessionId not found\");",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"CompanyDB\": \"{{CompanyDB}}\",\n    \"UserName\": \"{{UserName}}\",\n    \"Password\": \"{{Password}}\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://{{SAP_SL_HOST}}:50000/b1s/v1/Login",
+                    "protocol": "https",
+                    "host": [
+                        "{{SAP_SL_HOST}}"
+                    ],
+                    "port": "50000",
+                    "path": [
+                        "b1s",
+                        "v1",
+                        "Login"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "2. SAP Service Layer - Simular Pedido (Payload Corrigido)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Cookie",
+                        "value": "B1SESSION={{B1SESSION}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"CardCode\": \"C003612\",\n    \"DocDate\": \"2025-12-19\",\n    \"DocDueDate\": \"2025-12-29\",\n    \"Comments\": \"Teste Postman - Validação Catalog Number\",\n    \"DocumentLines\": [\n        {\n            \"ItemCode\": \"SEU_ITEM_CODE_REAL\",\n            \"Quantity\": 10,\n            \"BPCode\": \"90896187\"\n        }\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "description": "Tenta criar o pedido enviando o 'BPCode' (Código do Catálogo). Se a Opcão 1 (Nativa) estiver funcionando, o SAP deve resolver o ItemCode automaticamente OU aceitar o BPCode dependendo da configuração. Nota: O campo padrão da SL é ItemCode, o uso de BPCode direto pode exigir personalização no Body.",
+                "url": {
+                    "raw": "https://{{SAP_SL_HOST}}:50000/b1s/v1/Orders",
+                    "protocol": "https",
+                    "host": [
+                        "{{SAP_SL_HOST}}"
+                    ],
+                    "port": "50000",
+                    "path": [
+                        "b1s",
+                        "v1",
+                        "Orders"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "3. Integração Node.js - Reenviar Payload (Porta 9997)",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"cabecalho\": {\n        \"funcao\": \"9\",\n        \"tipoPedido\": \"001\",\n        \"numeroPedidoComprador\": \"TESTE_POSTMAN_01\",\n        \"cnpjComprador\": \"45543915022231\"\n    },\n    \"itens\": {\n        \"item\": [\n            {\n                \"numeroSequencialItem\": \"0004\",\n                \"codigoProduto\": \"90896187\",\n                \"descricaoProduto\": \"ARROZ TESTE\",\n                \"quantidadePedida\": \"10.00\"\n            }\n        ]\n    }\n} \n",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "description": "Envia o JSON diretamente para o serviço de integração na porta 9997. DICA: Se receber 404, verifique no servidor o caminho correto (ex: /receive, /api, /order) pois '/' pode não ser a rota configurada.",
+                "url": {
+                    "raw": "http://192.168.1.244:9997/",
+                    "protocol": "http",
+                    "host": [
+                        "192.168.1.244"
+                    ],
+                    "port": "9997",
+                    "path": [
+                        ""
+                    ]
+                }
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "SAP_SL_HOST",
+            "value": "192.168.1.xxx"
+        },
+        {
+            "key": "CompanyDB",
+            "value": "SBO_DB_NAME"
+        },
+        {
+            "key": "UserName",
+            "value": "manager"
+        },
+        {
+            "key": "Password",
+            "value": "1234"
+        },
+        {
+            "key": "B1SESSION",
+            "value": ""
+        }
+    ]
+}

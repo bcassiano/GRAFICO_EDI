@@ -1,0 +1,39 @@
+Line
+			INNER JOIN [@BIM_ORDEMCARGA] T2 ON T2.DocEntry = T1.U_OC_num
+			WHERE T0.AbsEntry = @list_of_cols_val_tab_del AND  T2.U_piking_checkbox = 'Y')) = @list_of_cols_val_tab_del )
+
+
+		BEGIN
+		UPDATE [@BIM_ORDEMCARGA] SET U_Num_picking = null, U_RAL_NumPick = (SELECT dbo.PickingsdaOCCancelamento(@list_of_cols_val_tab_del))
+		WHERE DocEntry IN(
+			SELECT	distinct T1.U_OC_num FROM PKL1 T0 
+			INNER JOIN RDR1 T1 ON T1.DocEntry = T0.OrderEntry AND T1.LineNum = T0.OrderLine
+			INNER JOIN [@BIM_ORDEMCARGA] T2 ON T2.DocEntry = T1.U_OC_num
+			WHERE T0.AbsEntry = @list_of_cols_val_tab_del AND  T2.U_piking_checkbox = 'Y');
+		END
+	ELSE 
+		BEGIN
+			UPDATE [@BIM_ORDEMCARGA] SET U_RAL_NumPick = (SELECT dbo.PickingsdaOCCancelamento(@list_of_cols_val_tab_del))
+		WHERE DocEntry IN(
+			SELECT	distinct T1.U_OC_num FROM PKL1 T0 
+			INNER JOIN RDR1 T1 ON T1.DocEntry = T0.OrderEntry AND T1.LineNum = T0.OrderLine
+			INNER JOIN [@BIM_ORDEMCARGA] T2 ON T2.DocEntry = T1.U_OC_num
+			WHERE T0.AbsEntry = @list_of_cols_val_tab_del AND  T2.U_piking_checkbox = 'Y');
+		END
+	END--END IF
+END--END GERAL
+--------------------------------------------------------------------------------------------------------------------------------
+--END
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+-- Author:Henrique Truyts
+-- Create date: 24/01/2018
+-- Update Date: 20/06/2018
+-- Description: Valida‡ao de Picking
+-- Documento: Picking 
+-- GLPI ID:4243
+-- GLPI IG Atualiza‡ao:5261
+--------------------------------------------------------------------------------------------------------------------------------
+IF (@object_type = '156') and (@transaction_type in ('A'))--'156' = Picking
+BEGIN
+	IF EXISTS(SELECT * FROM [@BIM_ORDEMCARGA] WHERE U_piking_checkbox='N' AND DocEntry in (

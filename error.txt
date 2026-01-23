@@ -1,0 +1,5 @@
+Message: Exceção ao chamar "Fill" com "1" argumento(s): "JSON text is not properly formatted. Unexpected character '.' is found at position 0."
+StackTrace:    em System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)
+   em System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)
+   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)
+   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)

@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Relatório EDI por Grupo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        
+        /* Summary Card with Doughnut */
+        .summary-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; max-width: 900px; margin: 0 auto 30px auto; gap: 50px; }
+        
+        .chart-container-doughnut { width: 250px; height: 250px; }
+        
+        .metrics-container { display: flex; flex-direction: column; justify-content: center; gap: 15px; text-align: left; }
+        .metric-row { font-size: 16px; color: #555; }
+        .metric-value { font-weight: bold; font-size: 20px; }
+        .metric-large { font-size: 24px; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px; margin-top: 5px; }
+        
+        /* Accordion Styles */
+        .group-container { max-width: 1000px; margin: 0 auto; }
+        .group-card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; overflow: hidden; }
+        .group-header { padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ddd; transition: background 0.2s; }
+        .group-header:hover { background-color: #f9f9f9; }
+        .group-header.has-error { border-left-color: #FF6384; }
+        .group-header.all-success { border-left-color: #4BC0C0; }
+        
+        .group-info h3 { margin: 0 0 5px 0; font-size: 18px; }
+        .group-stats { font-size: 14px; color: #555; }
+        .toggle-icon { font-size: 20px; color: #999; transition: transform 0.3s; }
+        .group-card.active .toggle-icon { transform: rotate(180deg); }
+        
+        .group-content { display: none; padding: 20px; border-top: 1px solid #eee; background-color: #fafafa; position: relative; }
+        .group-card.active .group-content { display: block; }
+        
+        .chart-wrapper { position: relative; height: 300px; width: 100%; }
+        .btn-load { background-color: #36A2EB; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 10px; display: none; }
+        .btn-load:hover { background-color: #2481BA; }
+        
+        /* Tooltip for Errors */
+        .error-detail-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 300px;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .error-detail-header { font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #555; padding-bottom: 3px; }
+        .error-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .error-count { font-weight: bold; color: #FF6384; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Relatório de Análise EDI (Agrupado)</h1>
+    </div>
+
+    <div class="summary-card">
+        <div class="chart-container-doughnut">
+            <canvas id="doughnutChart"></canvas>
+        </div>
+        <div class="metrics-container">
+            <div class="metric-row">Total de Transações: <span class="metric-value">559</span></div>
+            <div class="metric-row">Sucessos: <span class="metric-value" style="color: #4BC0C0;">423</span></div>
+            <div class="metric-row">Erros Únicos: <span class="metric-value" style="color: #FF6384;">136</span></div>
+            <div class="metric-row" style="font-size: 12px; color: #999;">(Erros Totais com Retentativas: 43285)</div>
+            <div class="metric-large">Taxa de Sucesso: 75.67%</div>
+        </div>
+    </div>
+
+    <div class="group-container" id="groupsContainer">
+        <!-- JS will render groups here -->
+    </div>
+    
+    <!-- Global Tooltip Container -->
+    <div id="customTooltip" class="error-detail-tooltip"></div>
+
+    <script>
+        const groupsData = [{"groupName": "Outros (API)", "totalSuccess": 0, "totalError": 50, "clients": [{"label": "[API] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 0, "error": 50, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 38, "timeout of 180000ms exceeded": 10, "Registro do cliente n\u00e3o encontrado": 2}}]}, {"groupName": "ATACADAO RJ", "totalSuccess": 0, "totalError": 30, "clients": [{"label": "[C009977] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C001826] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C004017] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C011754] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C002914] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C005503] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C001797] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C003507] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C003776] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C009512] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C003631] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C009510] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[C008742] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C008347] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C008504] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C009081] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C003635] ATACADAO S.A.", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C003782] ATACADAO S.A.", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}]}, {"groupName": "USO E CONSUMO", "totalSuccess": 99, "totalError": 13, "clients": [{"label": "[F004786] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 3, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 3}}, {"label": "[F000342] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[F004083] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[F000710] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"timeout of 180000ms exceeded": 1, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F002060] ATACADAO S A", "success": 0, "error": 2, "error_types": {"timeout of 180000ms exceeded": 1, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F001585] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F003509] TENDA ATACADO SA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F003435] SUPERMERCADO SHIBATA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[F004126] WMS SUPERMERCADOS DO BRASIL LTDA.", "success": 3, "error": 0, "error_types": {}}, {"label": "[F004081] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[F004058] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[F004049] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[F000764] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F000680] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[F000740] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[F000679] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F004038] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F000731] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[F002871] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F002710] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F002711] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F000706] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F000620] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F000636] SENDAS DISTRIBUIDORAS S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[F003765] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F002709] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003736] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F001976] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[F004161] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F002855] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003972] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003537] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F004101] SENDAS DISTRIBUIDORA S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F004076] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003727] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003932] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003013] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F004433] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F001778] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[F003738] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[F000630] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F003737] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[F003012] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F003153] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F003703] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 2, "error": 0, "error_types": {}}, {"label": "[F000739] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[F004140] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[F004037] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "ZARAGOZA", "totalSuccess": 0, "totalError": 11, "clients": [{"label": "[C016199] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 3, "error_types": {"timeout of 180000ms exceeded": 2, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C000131] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 2, "error_types": {"timeout of 180000ms exceeded": 1, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C012419] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 2, "error_types": {"timeout of 180000ms exceeded": 1, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C013562] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1, "timeout of 180000ms exceeded": 1}}, {"label": "[C004156] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C013010] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}]}, {"groupName": "FORNECEDORES", "totalSuccess": 19, "totalError": 11, "clients": [{"label": "[F001136] ATACADAO S.A", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[F001491] ATACADAO S/A", "success": 0, "error": 2, "error_types": {"timeout of 180000ms exceeded": 1, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F000361] ATACADAO S.A.", "success": 0, "error": 2, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 2}}, {"label": "[F002084] ATACADAO S.A.", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F001261] ATACADAO S/A", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F002357] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[F003073] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[F001643] ATACADAO S/A", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[F001276] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[F001231] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[F001138] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}]}, {"groupName": "NAGUMO", "totalSuccess": 11, "totalError": 10, "clients": [{"label": "[C000062] MIXTER ATACADO E VAREJO DE GENEROS ALIMENTICIOS LTDA", "success": 0, "error": 4, "error_types": {"(-1) N\u00e3o \u00e9 poss\u00edvel adicionar a Cota\u00e7\u00e3o. Entrar em..": 1, "[OQUT.DocTotalSy]": 2, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C002548] MERCANTIL VISTA VERDE LTDA", "success": 0, "error": 3, "error_types": {"O valor na Quantidade n\u00e3o pode ser zero  [Document..": 2, "N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C009068] ESTOK BRASIL COMERCIO DE ALIMENTOS LTDA", "success": 1, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C008763] COMERCIAL BRASIL DE ATIBAIA LTDA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C002322] COMERCIAL BARATAO COLONIAL LTDA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C002357] COMERCIAL BARATAO MORUMBI LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007127] ESTOK BRASIL COMERCIO DE ALIMENTOS LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008756] SP BRASIL ATACADO E VAREJO DE GENEROS ALIMENTICIOS LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008096] ESTOK BRASIL COMERCIO DE ALIMENTOS LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008758] SUPERMERCADO SP BRASIL DE ATIBAIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008759] SUPERMERCADO SP BRASIL DE ATIBAIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008761] COMERCIAL BRASIL DE ATIBAIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C012182] RIO BRASIL COMERCIO DE ALIMENTOS LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C004258] RIO BRASIL COMERCIO DE ALIMENTOS LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008586] SUPERMERCADOS SOLAR LTDA", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "CARREFOUR SP", "totalSuccess": 7, "totalError": 6, "clients": [{"label": "[C003612] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 0, "error": 3, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 3}}, {"label": "[C002212] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 2, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C005702] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 1, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C005704] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C005206] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005749] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005746] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005713] CARREFOUR COMERCIO E INDUSTRIA LTDA", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "TENDA", "totalSuccess": 13, "totalError": 4, "clients": [{"label": "[C012948] TENDA ATACADO SA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C006285] TENDA ATACADO SA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C005331] TENDA ATACADO SA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C005185] TENDA ATACADO SA", "success": 0, "error": 1, "error_types": {"N\u00famero de item n\u00e3o informado; especifique um n\u00famer..": 1}}, {"label": "[C008255] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C003754] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C001779] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C001759] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C013851] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C013525] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C012774] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C012422] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C006428] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C009076] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C006179] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005271] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005270] TENDA ATACADO SA", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "SHIBATA", "totalSuccess": 91, "totalError": 1, "clients": [{"label": "[C002004] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 1, "error_types": {"timeout of 180000ms exceeded": 1}}, {"label": "[C009193] SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "success": 2, "error": 0, "error_types": {}}, {"label": "[C014799] SUPERMERCADO SHIBATA JACAREI LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C014191] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C003025] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C006989] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002328] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C016003] SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C006726] SHIBATA EMPORIO LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C013211] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C004997] SUPERMERCADO SHIBATA TAUBATE LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002057] EMPORIO KIMOTO LTDA", "success": 2, "error": 0, "error_types": {}}, {"label": "[C000054] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 2, "error": 0, "error_types": {}}, {"label": "[C001324] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C004431] COMERCIAL OSVALDO TARORA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C005132] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C003888] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C000037] SUPERMERCADO SHIBATA JACAREI LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002213] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C009011] SUPERMERCADO SHIBATA JACAREI LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008353] SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C012194] SHIBATA CACAPAVA ATACADO E VAREJO DE MERCADORIAS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002005] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C005874] SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C000051] COML E IMPORTADORA SAO SEBASTIAO LT", "success": 3, "error": 0, "error_types": {}}, {"label": "[C014486] SK SUPERMERCADOS LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C004111] SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002771] SUPERMERCADO SHIBATA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C004310] SUPERMERCADO SHIBATA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002723] COMERCIAL OSVALDO TARORA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C005904] SUPERMERCADO SHIBATA LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C004372] SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "ATACADAO SP", "totalSuccess": 12, "totalError": 0, "clients": [{"label": "[C008034] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008167] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002585] WMS SUPERMERCADOS DO BRASIL LTDA", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008180] WMS SUPERMERCADOS DO BRASIL LTDA.", "success": 3, "error": 0, "error_types": {}}]}, {"groupName": "ASSAI  SP", "totalSuccess": 138, "totalError": 0, "clients": [{"label": "[C004117] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C004125] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C001889] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C003638] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C002458] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C001398] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C005092] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C001624] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C001967] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C005094] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C005073] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008524] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C001407] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005081] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C001406] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C009067] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005102] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C003637] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C005121] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C001402] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[C001394] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C005107] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C005112] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008484] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C001399] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C005105] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C001461] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C005060] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C001380] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005079] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C005075] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C002701] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C005114] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C015529] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C005119] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C008633] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005100] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C005059] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C002950] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C001365] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C004126] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005103] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005125] SENDAS DISTRIBUIDORA S/A", "success": 4, "error": 0, "error_types": {}}, {"label": "[C002289] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C004113] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}, {"label": "[C001460] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C001392] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C002326] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C005091] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C009178] SENDAS DISTRIBUIDORA S/A", "success": 2, "error": 0, "error_types": {}}, {"label": "[C009293] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C001372] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005067] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "ARROZ IMPORTADO", "totalSuccess": 8, "totalError": 0, "clients": [{"label": "[F001277] SENDAS DISTRIBUIDORA S/A", "success": 5, "error": 0, "error_types": {}}, {"label": "[F001278] SENDAS DISTRIBUIDORA S/A", "success": 3, "error": 0, "error_types": {}}]}, {"groupName": "MUFFATO", "totalSuccess": 4, "totalError": 0, "clients": [{"label": "[C007352] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007351] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007350] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007334] IRMAOS MUFFATO S.A", "success": 1, "error": 0, "error_types": {}}]}, {"groupName": "ASSAI RJ", "totalSuccess": 21, "totalError": 0, "clients": [{"label": "[C015866] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015865] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007272] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C003408] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015404] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C007400] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C002058] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C006841] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C003567] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C004240] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C002710] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C016254] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005407] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015869] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C008249] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C003647] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015406] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C005546] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C006146] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015405] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}, {"label": "[C015860] SENDAS DISTRIBUIDORA S/A", "success": 1, "error": 0, "error_types": {}}]}];
+        const PAGE_SIZE = 10;
+        
+        // --- Doughnut Chart ---
+        new Chart(document.getElementById('doughnutChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Sucesso', 'Erros'],
+                datasets: [{
+                    data: [423, 136],
+                    backgroundColor: ['#4BC0C0', '#FF6384'],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+        
+        // Render Group List
+        const container = document.getElementById('groupsContainer');
+        const tooltip = document.getElementById('customTooltip');
+        
+        groupsData.forEach((grp, index) => {
+            const card = document.createElement('div');
+            card.className = 'group-card ' + (grp.totalError > 0 ? 'active-border' : ''); // Optional Logic
+            
+            // Border Color Logic handled by class binding above slightly modified
+            const borderClass = grp.totalError > 0 ? 'has-error' : 'all-success';
+            
+            card.innerHTML = `
+                <div class="group-header ${borderClass}" onclick="toggleGroup(${index})">
+                    <div class="group-info">
+                        <h3>${grp.groupName}</h3>
+                        <div class="group-stats">
+                            Sucesso: <b>${grp.totalSuccess}</b> | Erros: <b style="color: ${grp.totalError > 0 ? '#FF6384' : '#666'}">${grp.totalError}</b>
+                        </div>
+                    </div>
+                    <div class="toggle-icon">▼</div>
+                </div>
+                <div class="group-content" id="content-${index}">
+                    <div class="chart-wrapper">
+                        <canvas id="chart-${index}"></canvas>
+                    </div>
+                    <button class="btn-load" id="btn-${index}" onclick="loadMore(${index})">Carregar Mais (10)</button>
+                </div>
+            `;
+            container.appendChild(card);
+            
+            // Initialize runtime state for pagination
+            grp.visualIndex = 0;
+            grp.chartInstance = null;
+        });
+
+        function toggleGroup(index) {
+            const content = document.getElementById(`content-${index}`);
+            const card = content.parentElement;
+            
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                card.classList.remove('active');
+            } else {
+                content.style.display = 'block';
+                card.classList.add('active');
+                
+                // Init Chart if first time
+                const grp = groupsData[index];
+                if (!grp.chartInstance) {
+                    initChart(index);
+                    loadMore(index); // Load initial batch
+                }
+            }
+        }
+
+        function initChart(index) {
+            const ctx = document.getElementById(`chart-${index}`).getContext('2d');
+            groupsData[index].chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Sucessos', data: [], backgroundColor: '#4BC0C0' },
+                        { label: 'Erros', data: [], backgroundColor: '#FF6384' }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true } },
+                    plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            enabled: false, // Disable default tooltip
+                            external: function(context) {
+                                // Tooltip Element
+                                const tooltipEl = document.getElementById('customTooltip');
+
+                                // Hide if no tooltip
+                                const tooltipModel = context.tooltip;
+                                if (tooltipModel.opacity === 0) {
+                                    tooltipEl.style.display = 'none';
+                                    return;
+                                }
+
+                                // Set Text
+                                if (tooltipModel.body) {
+                                    const dataIndex = tooltipModel.dataPoints[0].dataIndex;
+                                    const datasetIndex = tooltipModel.dataPoints[0].datasetIndex;
+                                    
+                                    // Identify Client
+                                    const grp = groupsData[index];
+                                    const client = grp.clients[dataIndex];
+                                    
+                                    if (datasetIndex === 1 && client.error > 0) { // Is Error Bar
+                                        let innerHtml = `<div class="error-detail-header">${client.label}</div>`;
+                                        innerHtml += `<div style="margin-bottom:5px; color:#FF6384; font-weight:bold;">Erros: ${client.error}</div>`;
+                                        
+                                        for (const [msg, count] of Object.entries(client.error_types)) {
+                                            innerHtml += `
+                                                <div class="error-item">
+                                                    <span style="width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;">${msg}</span>
+                                                    <span class="error-count">${count}</span>
+                                                </div>`;
+                                        }
+                                        tooltipEl.innerHTML = innerHtml;
+                                    } else {
+                                        // Standard Success Tooltip
+                                         tooltipEl.innerHTML = `
+                                            <div class="error-detail-header">${client.label}</div>
+                                            <div>Sucessos: ${client.success}</div>
+                                        `;
+                                    }
+                                }
+
+                                // Position
+                                const position = context.chart.canvas.getBoundingClientRect();
+                                
+                                tooltipEl.style.display = 'block';
+                                tooltipEl.style.left = position.left + window.pageXOffset + tooltipModel.caretX + 'px';
+                                tooltipEl.style.top = position.top + window.pageYOffset + tooltipModel.caretY + 'px';
+                            }
+                        }
+                    },
+                    onClick: (e) => {
+                        // Optional: Keep tooltip open on click or do something else
+                        // For now hover is sufficient as requested "Ao clicar... expandir e detalhar"
+                        // But since chart.js tooltips are hover-based, let's implement a 'sticky' 
+                        // behavior or just rely on the custom tooltip we just built which is quite detailed.
+                    }
+                }
+            });
+        }
+
+        function loadMore(index) {
+            const grp = groupsData[index];
+            const nextBatch = grp.clients.slice(grp.visualIndex, grp.visualIndex + PAGE_SIZE);
+            
+            if (nextBatch.length === 0) return;
+            
+            const chart = grp.chartInstance;
+            
+            nextBatch.forEach(client => {
+                chart.data.labels.push(client.label);
+                chart.data.datasets[0].data.push(client.success);
+                chart.data.datasets[1].data.push(client.error);
+            });
+            
+            grp.visualIndex += nextBatch.length;
+            chart.update();
+            
+            // Resize logic
+            const newHeight = grp.visualIndex * 40 + 50; // 40px per bar + padding
+            if (newHeight > 300) {
+                document.querySelector(`#content-${index} .chart-wrapper`).style.height = newHeight + 'px';
+            }
+            
+            // Toggle Button
+            const btn = document.getElementById(`btn-${index}`);
+            if (grp.visualIndex < grp.clients.length) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+    
