@@ -1,4 +1,27 @@
-$logFile = "c:\PERSONAL\BANCO_DE_DADOS\2026-01-22.log"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
+
+$logDir = $config.LOG_DIR
+# Find the latest log file if specific one not found, or just use the specific one if it exists
+$logFile = Join-Path $logDir "2026-01-22.log"
+
+if (-not (Test-Path $logFile)) {
+    # Fallback to latest .log file
+    $logFile = Get-ChildItem -Path $logDir -Filter "*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+}
+
+if (-not $logFile) {
+    Write-Error "No log file found in $logDir"
+    exit 1
+}
+
+Write-Host "Analyzing log: $logFile"
+
 $results = @()
 
 # Read log file with Encoding Default (usually works for mixed logs) or UTF8
