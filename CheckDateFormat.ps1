@@ -1,9 +1,16 @@
 $ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
 
-$query = "SELECT TOP 5 DATA_IMPORTACAO FROM [dbo].[SPS_LOG_EDI] ORDER BY ID DESC"
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+$query = "SELECT TOP 10 ID, DATA_IMPORTACAO FROM [dbo].[SPS_LOG_EDI] ORDER BY ID DESC"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection($connString)

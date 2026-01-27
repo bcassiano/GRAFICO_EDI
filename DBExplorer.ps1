@@ -1,31 +1,39 @@
-param (
-    [Parameter(Mandatory = $true)]
-    [ValidateSet("Tables", "Views", "Procedures", "Query")]
-    [string]$Action,
-    [string]$SQLQuery = ""
-)
+$ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
-
-$queries = @{
-    "Tables"     = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"
-    "Views"      = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS ORDER BY TABLE_NAME"
-    "Procedures" = "SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE' ORDER BY ROUTINE_NAME"
-}
-
-$finalQuery = if ($Action -eq "Query") { $SQLQuery } else { $queries[$Action] }
-
+# Load config
 try {
-    $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
-    $command = New-Object System.Data.SqlClient.SqlCommand($finalQuery, $connection)
-    $connection.Open()
-    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-    $dataset = New-Object System.Data.DataSet
-    $adapter.Fill($dataset) > $null
-    $dataset.Tables[0] | Format-Table -AutoSize
-    $connection.Close()
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
 }
-catch {
-    Write-Error "Erro: $_"
+
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+function Execute-Query {
+    param([string]$Query)
+    try {
+        $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
+        $command = New-Object System.Data.SqlClient.SqlCommand($Query, $connection)
+        $connection.Open()
+        $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+        $dataset = New-Object System.Data.DataSet
+        $adapter.Fill($dataset) > $null
+        $connection.Close()
+        if ($dataset.Tables.Count -gt 0) {
+            $dataset.Tables[0] | Format-Table -AutoSize
+        } else {
+            Write-Host "No results."
+        }
+    } catch {
+        Write-Error "Error: $_"
+    }
+}
+
+while ($true) {
+    $inputQuery = Read-Host "SQL > "
+    if ($inputQuery -eq "exit") { break }
+    if ($inputQuery) {
+        Execute-Query -Query $inputQuery
+    }
 }

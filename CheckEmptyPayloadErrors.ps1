@@ -1,9 +1,16 @@
 $ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
 
-$query = "SELECT ID, DESCR_ERRO, STATUS FROM [dbo].[SPS_LOG_EDI] WHERE ID IN (1129279, 1129278, 1129276)"
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+$query = "SELECT * FROM [dbo].[SPS_LOG_EDI] WHERE ARQUIVO = '{}' OR ARQUIVO IS NULL ORDER BY ID DESC"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
@@ -17,7 +24,10 @@ try {
     $connection.Close()
 
     if ($dataset.Tables.Count -gt 0) {
-        $dataset.Tables[0] | Format-List
+        $dataset.Tables[0] | Format-Table -AutoSize
+    }
+    else {
+        Write-Host "No empty payload errors found."
     }
 }
 catch {

@@ -1,31 +1,35 @@
+param (
+    [string]$Term
+)
+
 $ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
 
-$queries = @(
-    "SELECT ItemCode, ItemName FROM OITM WHERE ItemName LIKE '%ARROZ%FANTASTICO%' AND ValidFor = 'Y'",
-    "SELECT ItemCode, ItemName FROM OITM WHERE ItemName LIKE '%FEIJAO%FANTASTICO%' AND ValidFor = 'Y'",
-    "SELECT ItemCode, ItemName FROM OITM WHERE ItemName LIKE '%SABOR%CARIOCA%'"
-)
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+$query = "SELECT TOP 10 ItemCode, ItemName FROM OITM WHERE ItemName LIKE '%$Term%'"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
+    $command = New-Object System.Data.SqlClient.SqlCommand($query, $connection)
     $connection.Open()
 
-    foreach ($q in $queries) {
-        Write-Host "Executing: $q"
-        $command = New-Object System.Data.SqlClient.SqlCommand($q, $connection)
-        $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-        $dataset = New-Object System.Data.DataSet
-        $adapter.Fill($dataset) > $null
-        
-        if ($dataset.Tables.Count -gt 0) {
-            $dataset.Tables[0] | Format-Table -AutoSize
-        }
-    }
+    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+    $dataset = New-Object System.Data.DataSet
+    $adapter.Fill($dataset) > $null
     
     $connection.Close()
+
+    if ($dataset.Tables.Count -gt 0) {
+        $dataset.Tables[0] | Format-Table -AutoSize
+    }
 }
 catch {
     Write-Error "Database query failed: $_"

@@ -1,15 +1,23 @@
 $ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
+
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
 
 $query = @"
-SELECT TOP 5 ID, DESCR_ERRO
+SELECT TOP 20
+    JSON_VALUE(ARQUIVO, '$.cabecalho.cnpjComprador') AS CNPJ,
+    COUNT(*) AS ErroCount
 FROM [dbo].[SPS_LOG_EDI]
-WHERE STATUS = 'Erro' 
-AND ISJSON(CAST(ARQUIVO AS NVARCHAR(MAX))) = 1
-AND JSON_VALUE(CAST(ARQUIVO AS NVARCHAR(MAX)), '$.cabecalho.cnpjComprador') = '45543915026903'
-ORDER BY ID DESC
+WHERE STATUS = 'Erro'
+GROUP BY JSON_VALUE(ARQUIVO, '$.cabecalho.cnpjComprador')
+ORDER BY COUNT(*) DESC
 "@
 
 try {

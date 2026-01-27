@@ -1,15 +1,16 @@
 $ErrorActionPreference = "Stop"
 
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
 
-$query = @"
-SELECT TOP 5 ID, CAST(ARQUIVO AS NVARCHAR(MAX)) AS ARQUIVO_CONTENT
-FROM [dbo].[SPS_LOG_EDI]
-WHERE STATUS = 'Erro' 
-AND ISJSON(CAST(ARQUIVO AS NVARCHAR(MAX))) = 0
-ORDER BY ID DESC
-"@
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+$query = "SELECT TOP 5 ID, ARQUIVO FROM [dbo].[SPS_LOG_EDI] WHERE STATUS='Erro' ORDER BY ID DESC"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
@@ -23,10 +24,16 @@ try {
     $connection.Close()
 
     if ($dataset.Tables.Count -gt 0) {
-        $dataset.Tables[0] | Format-List
-    }
-    else {
-        Write-Host "No invalid JSON records found."
+        foreach ($row in $dataset.Tables[0].Rows) {
+            Write-Host "--- ID: $($row.ID) ---"
+            try {
+                $json = $row.ARQUIVO | ConvertFrom-Json
+                Write-Host "Valid JSON"
+            } catch {
+                Write-Host "INVALID JSON: $($_.Exception.Message)"
+                Write-Host "Snippet: $($row.ARQUIVO.Substring(0, [math]::Min(50, $row.ARQUIVO.Length)))"
+            }
+        }
     }
 }
 catch {

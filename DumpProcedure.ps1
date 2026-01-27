@@ -1,21 +1,32 @@
-$pass = '$@pRus70n#'
-$connString = "Server=192.168.1.177,1433;Database=RUST0N_PRODUCAO;User Id=sa;Password=$pass;Encrypt=False;TrustServerCertificate=True;"
+$ErrorActionPreference = "Stop"
+
+# Load config
+try {
+    $config = . "$PSScriptRoot\Get-Config.ps1"
+} catch {
+    Write-Error "Failed to load configuration: $_"
+    exit 1
+}
+
+$connString = "Server=$($config.DB_SERVER);Database=$($config.DB_NAME);User Id=$($config.DB_USER);Password=$($config.DB_PASS);Encrypt=False;TrustServerCertificate=True;"
+
+$query = "sp_helptext 'SBO_SP_TransactionNotification'"
 
 try {
     $connection = New-Object System.Data.SqlClient.SqlConnection($connString)
-    $command = New-Object System.Data.SqlClient.SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID('SBO_SP_TransactionNotification'))", $connection)
+    $command = New-Object System.Data.SqlClient.SqlCommand($query, $connection)
     $connection.Open()
-    $result = $command.ExecuteScalar()
+
+    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+    $dataset = New-Object System.Data.DataSet
+    $adapter.Fill($dataset) > $null
+
     $connection.Close()
 
-    if ($result -ne $null) {
-        $result | Out-File -FilePath "SBO_SP_TransactionNotification.sql" -Encoding UTF8
-        Write-Output "Procedure dumped to SBO_SP_TransactionNotification.sql"
-    }
-    else {
-        Write-Error "Procedure definition returned null."
+    if ($dataset.Tables.Count -gt 0) {
+        $dataset.Tables[0] | Format-Table -HideTableHeaders
     }
 }
 catch {
-    Write-Error "Erro: $_"
+    Write-Error "Database query failed: $_"
 }
