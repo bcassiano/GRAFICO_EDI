@@ -9,7 +9,14 @@ import time
 from datetime import datetime
 
 # Configuration
-LOG_DIR = r"c:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI"
+try:
+    with open("config.json", "r") as f:
+        config = json.load(f)
+        LOG_DIR = config.get("LOG_DIR", r"c:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI")
+except Exception as e:
+    print(f"Warning: Could not load config.json. Using default path. Error: {e}")
+    LOG_DIR = r"c:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI"
+
 OUTPUT_SUCCESS_CSV = "relatorio_sucesso.csv"
 OUTPUT_ERROR_CSV = "relatorio_erro.csv"
 OUTPUT_HTML = "relatorio_analise.html"
