@@ -1,0 +1,7 @@
+{
+    "DB_SERVER": "127.0.0.1,1433",
+    "DB_NAME": "YOUR_DATABASE_NAME",
+    "DB_USER": "your_username",
+    "DB_PASS": "your_password",
+    "LOG_DIR": "C:\\Path\\To\\Logs"
+}
