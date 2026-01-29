@@ -105,7 +105,9 @@ def get_api_data(cnpj):
 
 def analyze_logs():
     print(f"Buscando logs em: {LOG_DIR}")
-    log_files = glob.glob(os.path.join(LOG_DIR, "*.log"))
+    # log_files = glob.glob(os.path.join(LOG_DIR, "*.log"))
+    # Filter for specific date as requested
+    log_files = glob.glob(os.path.join(LOG_DIR, "2026-01-26.log"))
     
     seen_errors = set() 
     cnpj_stats = {} # { cnpj: { 'success': 0, 'error': 0, 'name': '', 'code': '', 'group': '', 'errors': {} } }
