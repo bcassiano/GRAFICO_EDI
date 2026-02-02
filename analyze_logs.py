@@ -13,6 +13,26 @@ LOG_DIR = r"c:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI"
 OUTPUT_SUCCESS_CSV = "relatorio_sucesso.csv"
 OUTPUT_ERROR_CSV = "relatorio_erro.csv"
 OUTPUT_HTML = "relatorio_analise.html"
+CNPJ_CACHE_FILE = "cnpj_cache.json"
+
+# Global Cache
+_cnpj_cache = {}
+
+def load_cache():
+    global _cnpj_cache
+    if os.path.exists(CNPJ_CACHE_FILE):
+        try:
+            with open(CNPJ_CACHE_FILE, 'r', encoding='utf-8') as f:
+                _cnpj_cache = json.load(f)
+        except:
+            _cnpj_cache = {}
+
+def save_cache():
+    try:
+        with open(CNPJ_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(_cnpj_cache, f, ensure_ascii=False, indent=2)
+    except:
+        pass
 
 def parse_date(date_str):
     """
@@ -75,12 +95,21 @@ def get_sap_data(cnpjs):
             for item in data:
                 # Normalize key from DB to match our log CNPJs
                 raw_cnpj = clean_cnpj(item.get('CardFName', ''))
+                card_code = item.get('CardCode', '')
                 if raw_cnpj:
-                    enrichment_map[raw_cnpj] = {
-                        'CardCode': item.get('CardCode'),
-                        'CardName': item.get('CardName'),
-                        'GroupName': item.get('GroupName')
-                    }
+                    # Priority logic: 
+                    # 1. If it's the first time we see this CNPJ, add it.
+                    # 2. If we already have it, ONLY overwrite if the NEW one is a Client (starts with 'C') 
+                    #    and the EXISTING one is NOT a Client.
+                    is_new_client = card_code.upper().startswith('C')
+                    already_has_client = enrichment_map.get(raw_cnpj, {}).get('CardCode', '').upper().startswith('C')
+                    
+                    if raw_cnpj not in enrichment_map or (is_new_client and not already_has_client):
+                        enrichment_map[raw_cnpj] = {
+                            'CardCode': card_code,
+                            'CardName': item.get('CardName'),
+                            'GroupName': item.get('GroupName')
+                        }
             return enrichment_map
             
     except Exception as e:
@@ -91,23 +120,51 @@ def get_sap_data(cnpjs):
 
 def get_api_data(cnpj):
     """
-    Queries BrasilAPI for CNPJ data.
+    Queries BrasilAPI for CNPJ data with caching and headers.
     """
+    if cnpj in _cnpj_cache:
+        return _cnpj_cache[cnpj]
+        
     url = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
     try:
-        with urllib.request.urlopen(url) as response:
+        print(f"Buscando CNPJ {cnpj} na BrasilAPI...")
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode())
-                return data.get('razao_social') or data.get('nome_fantasia')
-    except Exception:
-        pass
+                name = data.get('razao_social') or data.get('nome_fantasia')
+                if name:
+                    _cnpj_cache[cnpj] = name
+                    save_cache()
+                    return name
+    except Exception as e:
+        print(f"Erro ao consultar API ({cnpj}): {e}")
+        
     return None
 
-def analyze_logs():
-    print(f"Buscando logs em: {LOG_DIR}")
-    # log_files = glob.glob(os.path.join(LOG_DIR, "*.log"))
-    # Filter for specific date as requested
-    log_files = glob.glob(os.path.join(LOG_DIR, "2026-01-26.log"))
+def analyze_logs(target_date=None):
+    if target_date is None:
+        target_date = datetime.now().strftime("%Y-%m-%d")
+        
+    print(f"Buscando logs em: {LOG_DIR} para a data: {target_date}")
+    
+    # Filter for specific date
+    log_files = glob.glob(os.path.join(LOG_DIR, f"{target_date}.log"))
+    
+    if not log_files:
+        print(f"Nenhum arquivo encontrado para {target_date}. Tentando o mais recente...")
+        all_logs = glob.glob(os.path.join(LOG_DIR, "*.log"))
+        if all_logs:
+            latest_log = max(all_logs, key=os.path.getmtime)
+            log_files = [latest_log]
+            print(f"Processando arquivo mais recente: {os.path.basename(latest_log)}")
+        else:
+            print("Nenhum arquivo de log encontrado.")
+            return
     
     seen_errors = set() 
     cnpj_stats = {} # { cnpj: { 'success': 0, 'error': 0, 'name': '', 'code': '', 'group': '', 'errors': {} } }
@@ -285,9 +342,9 @@ def analyze_logs():
             writer.writerow([cnpj, stats['name'], stats['code'], stats['group'], stats['success'], stats['error']])
         
     # Generate HTML
-    generate_html_accordion(len(success_list), len(error_list), total_raw_errors, group_stats)
+    generate_html_accordion(len(success_list), len(error_list), total_raw_errors, group_stats, target_date)
 
-def generate_html_accordion(success_count, error_count, raw_error_count, group_stats):
+def generate_html_accordion(success_count, error_count, raw_error_count, group_stats, target_date):
     total_unique = success_count + error_count
     rate = (success_count / total_unique * 100) if total_unique > 0 else 0
     
@@ -329,7 +386,10 @@ def generate_html_accordion(success_count, error_count, raw_error_count, group_s
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }}
-        .header {{ text-align: center; margin-bottom: 30px; }}
+        /* Header Style Updates */
+        .header {{ text-align: center; margin-bottom: 30px; position: relative; }}
+        .header h1 {{ margin: 0; color: #333; }}
+        .header .report-date {{ font-size: 18px; color: #666; margin-top: 10px; font-weight: 500; }}
         
         /* Summary Card with Doughnut */
         .summary-card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; max-width: 900px; margin: 0 auto 30px auto; gap: 50px; }}
@@ -383,6 +443,7 @@ def generate_html_accordion(success_count, error_count, raw_error_count, group_s
 <body>
     <div class="header">
         <h1>Relatório de Análise EDI (Agrupado)</h1>
+        <div class="report-date">Análise Referente a: {target_date}</div>
     </div>
 
     <div class="summary-card">
@@ -605,4 +666,7 @@ def generate_html_accordion(success_count, error_count, raw_error_count, group_s
     print(f"HTML gerado: {OUTPUT_HTML}")
 
 if __name__ == "__main__":
-    analyze_logs()
+    import sys
+    load_cache()
+    date_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    analyze_logs(date_arg)
