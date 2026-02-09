@@ -5,10 +5,15 @@ import csv
 import re
 import subprocess
 import urllib.request
+import paramiko
 import time
 from datetime import datetime
 
-# Configuration
+# Remote Configuration
+SSH_HOST = "192.168.1.244"
+SSH_USER = "root"
+SSH_PASS = "Rust0n@2023@"
+REMOTE_LOG_DIR = "/SPS/PRD/integracao_neogrid/logs"
 LOG_DIR = r"c:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI"
 OUTPUT_SUCCESS_CSV = "relatorio_sucesso.csv"
 OUTPUT_ERROR_CSV = "relatorio_erro.csv"
@@ -146,114 +151,171 @@ def get_api_data(cnpj):
         
     return None
 
+def get_remote_log_file(client, target_date=None):
+    """
+    Connects via SFTP and returns an open file object for the requested log.
+    If target_date is None, finds the most recent .log file.
+    Returns: (file_object, filename) or (None, None)
+    """
+    try:
+        sftp = client.open_sftp()
+        
+        if target_date:
+            filename = f"{target_date}.log"
+            filepath = f"{REMOTE_LOG_DIR}/{filename}"
+            print(f"Tentando abrir arquivo remoto: {filepath}")
+            try:
+                return sftp.open(filepath, 'r'), filename
+            except FileNotFoundError:
+                print(f"Arquivo {filename} não encontrado no servidor.")
+                return None, None
+        else:
+            print(f"Listando arquivos em {REMOTE_LOG_DIR} para encontrar o mais recente...")
+            files = sftp.listdir_attr(REMOTE_LOG_DIR)
+            # Filter for .log files
+            log_files = [f for f in files if f.filename.endswith('.log')]
+            
+            if not log_files:
+                print("Nenhum arquivo .log encontrado no diretório remoto.")
+                return None, None
+                
+            # Sort by modification time (st_mtime), descending
+            log_files.sort(key=lambda x: x.st_mtime, reverse=True)
+            latest = log_files[0]
+            
+            filename = latest.filename
+            filepath = f"{REMOTE_LOG_DIR}/{filename}"
+            print(f"Abrindo arquivo mais recente: {filepath}")
+            return sftp.open(filepath, 'r'), filename
+
+    except Exception as e:
+        print(f"Erro no acesso SFTP: {e}")
+        return None, None
+
 def analyze_logs(target_date=None):
     if target_date is None:
         target_date = datetime.now().strftime("%Y-%m-%d")
         
-    print(f"Buscando logs em: {LOG_DIR} para a data: {target_date}")
+    print(f"Iniciando conexão SSH com {SSH_HOST}...")
     
-    # Filter for specific date
-    log_files = glob.glob(os.path.join(LOG_DIR, f"{target_date}.log"))
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     
-    if not log_files:
-        print(f"Nenhum arquivo encontrado para {target_date}. Tentando o mais recente...")
-        all_logs = glob.glob(os.path.join(LOG_DIR, "*.log"))
-        if all_logs:
-            latest_log = max(all_logs, key=os.path.getmtime)
-            log_files = [latest_log]
-            print(f"Processando arquivo mais recente: {os.path.basename(latest_log)}")
-        else:
-            print("Nenhum arquivo de log encontrado.")
-            return
-    
-    seen_errors = set() 
-    cnpj_stats = {} # { cnpj: { 'success': 0, 'error': 0, 'name': '', 'code': '', 'group': '', 'errors': {} } }
-    success_list = []
-    error_list = []
-    
-    total_processed = 0
-    total_raw_errors = 0
-    
-    for log_file in log_files:
-        filename = os.path.basename(log_file)
+    try:
+        ssh_client.connect(SSH_HOST, username=SSH_USER, password=SSH_PASS)
         
+        # Get remote file handle
+        remote_file, filename = get_remote_log_file(ssh_client, target_date)
+        
+        if not remote_file:
+            print("Não foi possível acessar o arquivo de log remoto.")
+            return
+
+        print(f"Processando arquivo: {filename}")
+        
+        seen_errors = set() 
+        cnpj_stats = {} 
+        success_list = []
+        error_list = []
+        
+        total_processed = 0
+        total_raw_errors = 0
+        
+        # Process the file stream directly
         try:
-            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-                for line in f:
-                    if "gravaLog(" in line:
-                        json_start = line.find('{')
-                        if json_start == -1: continue
-                        
-                        metadata_str = line[:json_start]
-                        
-                        grava_index = metadata_str.find("gravaLog(")
-                        if grava_index != -1:
-                            inner_meta = metadata_str[grava_index + 9:]
-                            meta_parts = inner_meta.split(',')
-                            if len(meta_parts) >= 2:
-                                status = meta_parts[1].strip()
-                                error_msg = meta_parts[2].strip() if len(meta_parts) > 2 else ""
-                            else:
-                                status = "Unknown"
-                                error_msg = ""
+            # SFTP file is compatible with iteration
+            for line in remote_file:
+                if "gravaLog(" in line:
+                    json_start = line.find('{')
+                    if json_start == -1: continue
+                    
+                    metadata_str = line[:json_start]
+                    
+                    grava_index = metadata_str.find("gravaLog(")
+                    if grava_index != -1:
+                        inner_meta = metadata_str[grava_index + 9:]
+                        meta_parts = inner_meta.split(',')
+                        if len(meta_parts) >= 2:
+                            status = meta_parts[1].strip()
+                            error_msg = meta_parts[2].strip() if len(meta_parts) > 2 else ""
                         else:
                             status = "Unknown"
                             error_msg = ""
+                    else:
+                        status = "Unknown"
+                        error_msg = ""
 
-                        json_end = line.rfind('}')
-                        if json_end == -1: continue
-                            
-                        json_str = line[json_start : json_end + 1]
+                    json_end = line.rfind('}')
+                    if json_end == -1: continue
                         
-                        try:
-                            payload = json.loads(json_str)
-                            cabecalho = payload.get("cabecalho", {})
-                            cnpj = cabecalho.get("cnpjComprador", "Desconhecido")
-                            dhe = cabecalho.get("dataHoraEmissao", "")
-                            nf = cabecalho.get("numeroPedidoComprador", "")
-                            
-                            formatted_date = parse_date(dhe)
-                            
-                            row = {
-                                "Arquivo": filename,
-                                "Status": status,
-                                "CNPJ": cnpj,
-                                "DataEmissao": formatted_date,
-                                "Pedido": nf,
-                                "InfoOriginal": dhe
+                    json_str = line[json_start : json_end + 1]
+                    
+                    try:
+                        payload = json.loads(json_str)
+                        cabecalho = payload.get("cabecalho", {})
+                        cnpj = cabecalho.get("cnpjComprador", "Desconhecido")
+                        dhe = cabecalho.get("dataHoraEmissao", "")
+                        nf = cabecalho.get("numeroPedidoComprador", "")
+                        
+                        formatted_date = parse_date(dhe)
+                        
+                        row = {
+                            "Arquivo": filename,
+                            "Status": status,
+                            "CNPJ": cnpj,
+                            "DataEmissao": formatted_date,
+                            "Pedido": nf,
+                            "InfoOriginal": dhe
+                        }
+                        
+                        # Initialize CNPJ entry
+                        if cnpj not in cnpj_stats:
+                            cnpj_stats[cnpj] = {
+                                'success': 0, 
+                                'error': 0, 
+                                'name': 'Desconhecido', 
+                                'code': '', 
+                                'group': 'Não Identificado', 
+                                'errors': {}, 
+                                'error_orders': [],
+                                'success_orders': []
                             }
-                            
-                            # Initialize CNPJ entry
-                            if cnpj not in cnpj_stats:
-                                cnpj_stats[cnpj] = {'success': 0, 'error': 0, 'name': 'Desconhecido', 'code': '', 'group': 'Não Identificado', 'errors': {}}
 
-                            if status == "Sucesso":
-                                success_list.append(row)
-                                cnpj_stats[cnpj]['success'] += 1
-                            elif status == "Erro":
-                                total_raw_errors += 1
-                                error_key = (cnpj, nf)
-                                if error_key not in seen_errors:
-                                    seen_errors.add(error_key)
-                                    error_list.append(row)
-                                    cnpj_stats[cnpj]['error'] += 1
-                                    
-                                    # Track Error Type
-                                    clean_msg = error_msg.replace('"', '').replace("'", "")
-                                    # Simple classification based on common errors or just raw message
-                                    # We'll use the raw message but truncated if too long
-                                    short_msg = (clean_msg[:50] + '..') if len(clean_msg) > 50 else clean_msg
-                                    if short_msg not in cnpj_stats[cnpj]['errors']:
-                                        cnpj_stats[cnpj]['errors'][short_msg] = 0
-                                    cnpj_stats[cnpj]['errors'][short_msg] += 1
+                        if status == "Sucesso":
+                            success_list.append(row)
+                            cnpj_stats[cnpj]['success'] += 1
+                            # Track success order number
+                            if nf and nf not in cnpj_stats[cnpj]['success_orders']:
+                                cnpj_stats[cnpj]['success_orders'].append(nf)
+                        elif status == "Erro":
+                            total_raw_errors += 1
+                            error_key = (cnpj, nf)
+                            if error_key not in seen_errors:
+                                seen_errors.add(error_key)
+                                error_list.append(row)
+                                cnpj_stats[cnpj]['error'] += 1
                                 
-                            total_processed += 1
+                                # Track Error Type
+                                clean_msg = error_msg.replace('"', '').replace("'", "")
+                                short_msg = (clean_msg[:50] + '..') if len(clean_msg) > 50 else clean_msg
+                                if short_msg not in cnpj_stats[cnpj]['errors']:
+                                    cnpj_stats[cnpj]['errors'][short_msg] = 0
+                                cnpj_stats[cnpj]['errors'][short_msg] += 1
+                                # Track error order number
+                                if nf and nf not in cnpj_stats[cnpj]['error_orders']:
+                                    cnpj_stats[cnpj]['error_orders'].append(nf)
                             
-                        except json.JSONDecodeError:
-                            pass
-                            
-        except Exception as e:
-            print(f"Erro ao ler arquivo {filename}: {e}")
+                        total_processed += 1
+                        
+                    except json.JSONDecodeError:
+                        pass
+        finally:
+            remote_file.close()
+            ssh_client.close()
+            
+    except Exception as e:
+        print(f"Erro crítico na conexão ou processamento: {e}")
+        return
 
     # Enrichment Step
     print("Iniciando enriquecimento de dados...")
@@ -283,6 +345,27 @@ def analyze_logs(target_date=None):
                 cnpj_stats[cnpj]['name'] = f"CNPJ: {cnpj}"
                 
             time.sleep(0.5) 
+    
+    # Post-process: Adjust error counts for corrected orders
+    # Corrected orders should ONLY count as success, not as error
+    print("Ajustando contagens para pedidos corrigidos...")
+    for cnpj, stats in cnpj_stats.items():
+        error_orders_set = set(stats.get('error_orders', []))
+        success_orders_set = set(stats.get('success_orders', []))
+        corrected_orders = error_orders_set & success_orders_set
+        
+        if corrected_orders:
+            # For each corrected order, decrement the error count
+            # We need to track which errors to remove from error_list for accurate deduplication
+            stats['error'] -= len(corrected_orders)
+            
+            # Remove corrected orders from error count (they stay in error_orders for display)
+            # We'll keep them in the lists for visualization, but adjust the numeric counts
+            
+            # Note: We can't easily adjust error_types counts without tracking which error
+            # message belongs to which order, so we'll keep error_types as-is for now
+            # The important part is the total error count is correct
+ 
 
     print(f"Total processado: {total_processed}")
     print(f"Sucessos: {len(success_list)}")
@@ -310,7 +393,10 @@ def analyze_logs(target_date=None):
                 'name': stats['name'], 
                 'success': 0, 
                 'error': 0, 
-                'error_types': {}
+                'error_types': {},
+                'success_orders': [],
+                'error_orders': [],
+                'corrected_orders': []
             }
         
         client = group_stats[grp]['clients'][code]
@@ -321,6 +407,27 @@ def analyze_logs(target_date=None):
             if msg not in client['error_types']:
                 client['error_types'][msg] = 0
             client['error_types'][msg] += count
+        
+        # Detect corrected orders (orders that appear in both error and success lists)
+        error_orders_set = set(stats.get('error_orders', []))
+        success_orders_set = set(stats.get('success_orders', []))
+        corrected = list(error_orders_set & success_orders_set)
+        
+        # Add orders to client, separating by category
+        for order in stats.get('success_orders', []):
+            if order not in corrected:  # Only pure successes
+                if order not in client['success_orders']:
+                    client['success_orders'].append(order)
+        
+        for order in stats.get('error_orders', []):
+            if order not in corrected:  # Only pure errors
+                if order not in client['error_orders']:
+                    client['error_orders'].append(order)
+        
+        # Add corrected orders
+        for order in corrected:
+            if order not in client['corrected_orders']:
+                client['corrected_orders'].append(order)
             
     # Write CSVs
     with open(OUTPUT_SUCCESS_CSV, 'w', newline='', encoding='utf-8') as csvfile:
@@ -366,7 +473,10 @@ def generate_html_accordion(success_count, error_count, raw_error_count, group_s
                 'label': f"[{code}] {cli_stats['name']}",
                 'success': cli_stats['success'],
                 'error': cli_stats['error'],
-                'error_types': cli_stats['error_types']
+                'error_types': cli_stats['error_types'],
+                'success_orders': cli_stats.get('success_orders', []),
+                'error_orders': cli_stats.get('error_orders', []),
+                'corrected_orders': cli_stats.get('corrected_orders', [])
             })
             
         groups_data.append({
@@ -596,13 +706,66 @@ def generate_html_accordion(success_count, error_count, raw_error_count, group_s
                                                     <span class="error-count">${{count}}</span>
                                                 </div>`;
                                         }}
+                                        
+                                        // Display error order numbers
+                                        if (client.error_orders && client.error_orders.length > 0) {{
+                                            innerHtml += `<div style="margin-top:8px; border-top:1px solid #555; padding-top:5px;"><strong style="color:#FF6384;">Pedidos com Erro:</strong></div>`;
+                                            innerHtml += `<div style="max-height:100px; overflow-y:auto; font-size:11px;">`;
+                                            client.error_orders.slice(0, 10).forEach(order => {{
+                                                innerHtml += `<div style="color:#FF6384;">${{order}}</div>`;
+                                            }});
+                                            if (client.error_orders.length > 10) {{
+                                                innerHtml += `<div style="color:#888; font-style:italic;">... e mais ${{client.error_orders.length - 10}} pedidos</div>`;
+                                            }}
+                                            innerHtml += `</div>`;
+                                        }}
+                                        
+                                        // Display corrected orders
+                                        if (client.corrected_orders && client.corrected_orders.length > 0) {{
+                                            innerHtml += `<div style="margin-top:8px; border-top:1px solid #555; padding-top:5px;"><strong style="color:#FFA500;">Pedidos Corrigidos:</strong></div>`;
+                                            innerHtml += `<div style="max-height:100px; overflow-y:auto; font-size:11px;">`;
+                                            client.corrected_orders.slice(0, 10).forEach(order => {{
+                                                innerHtml += `<div style="color:#FFA500; font-weight:bold;">${{order}}</div>`;
+                                            }});
+                                            if (client.corrected_orders.length > 10) {{
+                                                innerHtml += `<div style="color:#888; font-style:italic;">... e mais ${{client.corrected_orders.length - 10}} pedidos</div>`;
+                                            }}
+                                            innerHtml += `</div>`;
+                                        }}
+                                        
                                         tooltipEl.innerHTML = innerHtml;
-                                    }} else {{
+                                    }} else {{ // Is Success Bar
                                         // Standard Success Tooltip
-                                         tooltipEl.innerHTML = `
-                                            <div class="error-detail-header">${{client.label}}</div>
-                                            <div>Sucessos: ${{client.success}}</div>
-                                        `;
+                                        let innerHtml = `<div class="error-detail-header">${{client.label}}</div>`;
+                                        innerHtml += `<div style="margin-bottom:5px; color:#4BC0C0; font-weight:bold;">Sucessos: ${{client.success}}</div>`;
+                                        
+                                        // Display success order numbers
+                                        if (client.success_orders && client.success_orders.length > 0) {{
+                                            innerHtml += `<div style="margin-top:8px; border-top:1px solid #555; padding-top:5px;"><strong style="color:#4BC0C0;">Pedidos com Sucesso:</strong></div>`;
+                                            innerHtml += `<div style="max-height:100px; overflow-y:auto; font-size:11px;">`;
+                                            client.success_orders.slice(0, 10).forEach(order => {{
+                                                innerHtml += `<div style="color:#4BC0C0;">${{order}}</div>`;
+                                            }});
+                                            if (client.success_orders.length > 10) {{
+                                                innerHtml += `<div style="color:#888; font-style:italic;">... e mais ${{client.success_orders.length - 10}} pedidos</div>`;
+                                            }}
+                                            innerHtml += `</div>`;
+                                        }}
+                                        
+                                        // Display corrected orders in success tooltip too
+                                        if (client.corrected_orders && client.corrected_orders.length > 0) {{
+                                            innerHtml += `<div style="margin-top:8px; border-top:1px solid #555; padding-top:5px;"><strong style="color:#FFA500;">Pedidos Corrigidos:</strong></div>`;
+                                            innerHtml += `<div style="max-height:100px; overflow-y:auto; font-size:11px;">`;
+                                            client.corrected_orders.slice(0, 10).forEach(order => {{
+                                                innerHtml += `<div style="color:#FFA500; font-weight:bold;">${{order}}</div>`;
+                                            }});
+                                            if (client.corrected_orders.length > 10) {{
+                                                innerHtml += `<div style="color:#888; font-style:italic;">... e mais ${{client.corrected_orders.length - 10}} pedidos</div>`;
+                                            }}
+                                            innerHtml += `</div>`;
+                                        }}
+                                        
+                                        tooltipEl.innerHTML = innerHtml;
                                     }}
                                 }}
 
