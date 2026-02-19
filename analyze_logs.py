@@ -57,33 +57,56 @@ def get_sap_data(cnpjs):
     """
     Queries SAP OCRD table for given CNPJs.
     Returns dict: { cnpj: {'CardCode': ..., 'CardName': ..., 'GroupName': ...} }
+    Searches CardFName, LicTradNum, TaxId0 (CRD7), TaxId4 (CRD7).
     """
     if not cnpjs:
         return {}
         
     print(f"Consultando SAP para {len(cnpjs)} CNPJs...")
     
-    # helper to strip non-digits
+    # Helper to strip non-digits
     def clean_cnpj(c):
         return re.sub(r'\D', '', str(c))
-        
-    cleaned_cnpjs = set(clean_cnpj(c) for c in cnpjs if c)
-    if not cleaned_cnpjs:
+
+    # Build candidate map: all digit-variants -> original log CNPJ
+    candidate_map = {}
+    for c in cnpjs:
+        raw = clean_cnpj(c)
+        if not raw: continue
+        candidate_map[raw] = c
+        candidate_map[raw.zfill(14)] = c
+        trimmed = raw.lstrip('0')
+        if trimmed:
+            candidate_map[trimmed] = c
+
+    candidates = list(candidate_map.keys())
+    if not candidates:
         return {}
 
-    # Format CNPJs for SQL IN Clause
-    cnpj_list_sql = ", ".join([f"'{c}'" for c in cleaned_cnpjs])
+    # Format CNPJs for SQL IN clause
+    in_clause = "', '".join(candidates)
     
-    # Robust Query: Join OCRD and OCRG to get GroupName
-    # T0 = OCRD, T1 = OCRG
-    query = f"SELECT T0.CardFName, T0.CardCode, T0.CardName, T1.GroupName FROM OCRD T0 LEFT JOIN OCRG T1 ON T0.GroupCode = T1.GroupCode WHERE REPLACE(REPLACE(REPLACE(T0.CardFName, '.', ''), '/', ''), '-', '') IN ({cnpj_list_sql})"
+    # Query all 4 CNPJ fields, including CRD7 for TaxId0/TaxId4
+    query = f"""
+    SELECT DISTINCT
+        T0.CardCode,
+        T0.CardName,
+        ISNULL(T0.CardFName, '') as CardFName,
+        ISNULL(T0.LicTradNum, '') as LicTradNum,
+        ISNULL(T1.TaxId0, '') as TaxId0,
+        ISNULL(T1.TaxId4, '') as TaxId4,
+        ISNULL(T2.GroupName, 'Sem Grupo') as GroupName
+    FROM OCRD T0
+    LEFT JOIN CRD7 T1 ON T0.CardCode = T1.CardCode
+    LEFT JOIN OCRG T2 ON T0.GroupCode = T2.GroupCode
+    WHERE
+        REPLACE(REPLACE(REPLACE(ISNULL(T0.CardFName,''),'.',''),'/',''),'-','') IN ('{in_clause}')
+     OR REPLACE(REPLACE(REPLACE(ISNULL(T0.LicTradNum,''),'.',''),'/',''),'-','') IN ('{in_clause}')
+     OR REPLACE(REPLACE(REPLACE(ISNULL(T1.TaxId0,''),'.',''),'/',''),'-','') IN ('{in_clause}')
+     OR REPLACE(REPLACE(REPLACE(ISNULL(T1.TaxId4,''),'.',''),'/',''),'-','') IN ('{in_clause}')
+    """
     
-    # Call PowerShell ExecQuery.ps1
-    cmd = [
-        "powershell", 
-        "-File", "ExecQuery.ps1", 
-        "-SQLQuery", query
-    ]
+    cmd = ["powershell", "-File", "ExecQuery.ps1", "-SQLQuery", query]
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -98,28 +121,39 @@ def get_sap_data(cnpjs):
             
             enrichment_map = {}
             for item in data:
-                # Normalize key from DB to match our log CNPJs
-                raw_cnpj = clean_cnpj(item.get('CardFName', ''))
                 card_code = item.get('CardCode', '')
-                if raw_cnpj:
-                    # Priority logic: 
-                    # 1. If it's the first time we see this CNPJ, add it.
-                    # 2. If we already have it, ONLY overwrite if the NEW one is a Client (starts with 'C') 
-                    #    and the EXISTING one is NOT a Client.
-                    is_new_client = card_code.upper().startswith('C')
-                    already_has_client = enrichment_map.get(raw_cnpj, {}).get('CardCode', '').upper().startswith('C')
-                    
-                    if raw_cnpj not in enrichment_map or (is_new_client and not already_has_client):
-                        enrichment_map[raw_cnpj] = {
-                            'CardCode': card_code,
-                            'CardName': item.get('CardName'),
-                            'GroupName': item.get('GroupName')
-                        }
+                stats = {
+                    'CardCode': card_code,
+                    'CardName': item.get('CardName'),
+                    'GroupName': item.get('GroupName')
+                }
+                
+                # Check ALL 4 fields to find which candidate matched
+                matched_originals = set()
+                fields_to_check = [
+                    item.get('CardFName', ''),
+                    item.get('LicTradNum', ''),
+                    item.get('TaxId0', ''),
+                    item.get('TaxId4', '')
+                ]
+                for field in fields_to_check:
+                    clean = clean_cnpj(field)
+                    for variant in [clean, clean.zfill(14), clean.lstrip('0')]:
+                        if variant and variant in candidate_map:
+                            matched_originals.add(candidate_map[variant])
+
+                # Priority: prefer CardCodes starting with 'C' (clients) over vendors
+                is_new_client = card_code.upper().startswith('C')
+                for original in matched_originals:
+                    existing = enrichment_map.get(original, {})
+                    already_has_client = existing.get('CardCode', '').upper().startswith('C')
+                    if original not in enrichment_map or (is_new_client and not already_has_client):
+                        enrichment_map[original] = stats
+
             return enrichment_map
             
     except Exception as e:
         print(f"Erro ao consultar SAP: {e}")
-        # print("Output:", result.stdout if 'result' in locals() else "N/A")
         
     return {}
 
