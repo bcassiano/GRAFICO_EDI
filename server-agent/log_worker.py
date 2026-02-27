@@ -216,6 +216,12 @@ def process_logs(start_date, end_date):
                             
                             formatted_date = parse_date(dhe)
                             
+                            # Filtro estrito: só conta pedidos cuja dataEmissao
+                            # caia dentro do intervalo selecionado
+                            only_date = formatted_date[:10] if formatted_date else ""
+                            if only_date not in date_list:
+                                continue
+                            
                             if cnpj not in cnpj_stats:
                                 cnpj_stats[cnpj] = {
                                     'success': 0, 'error': 0, 'name': f'CNPJ: {cnpj}', 

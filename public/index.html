@@ -108,7 +108,8 @@
     <div class="max-w-7xl mx-auto mb-10 animate-enter" style="animation-delay: 0.1s">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-gray-900">Relatório de Análise EDI</h1>
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">Relatório de Análise EDI</h1><span
+                    class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded ml-2">v3.0.1 - CLEAN</span>
                 <p class="text-gray-600 mt-1">Período: <span class="font-medium text-gray-800"
                         x-text="dateRangeText"></span></p>
             </div>
@@ -473,9 +474,9 @@
     </div>
 
     <script>
-        function reportData() {
-            let chartInstance = null; // Stored outside to prevent Alpine Proxy crash
 
+        function reportData() {
+            let chartInstance = null;
             return {
                 rawGroupData: [],
                 isLoading: false,
@@ -484,133 +485,62 @@
                 startDate: '',
                 endDate: '',
                 expandAll: false,
-                // FIX #3: objeto reativo em vez de Set (Alpine.js rastreia propriedades de objeto, não Set)
                 expandedGroups: {},
-                toast: { visible: false, message: '' },
-
+                toast: { visible: false, message: "" },
+                _initialized: false,
+                version: '3.0.1',
 
                 async loadFromCache() {
-                    try {
-                        this.isLoading = true;
-                        const cacheRef = db.collection('daily_summaries').doc('latest');
-                        const doc = await cacheRef.get();
-                        if (doc.exists) {
-                            const data = doc.data();
-                            this.formatAndSetData(data.groups);
-                        } else {
-                            this.rawGroupData = [];
-                        }
-                    } catch (e) {
-                        console.error("Erro ao carregar do cache:", e);
-                        this.showToast('Erro ao carregar dados do banco.');
-                    } finally {
-                        this.isLoading = false;
-                    }
+                    console.log("[Dashboard] loadFromCache: estado vazio forçado.");
+                    this.rawGroupData = [];
+                    this.isLoading = false;
+                },
+
+                formatToBRDate(isoDate) {
+                    if (!isoDate) return '';
+                    const parts = isoDate.split('-');
+                    if (parts.length !== 3) return isoDate;
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                },
+
+                formatDateToBR(isoDate) {
+                    if (!isoDate) return '';
+                    const parts = isoDate.split('-');
+                    if (parts.length !== 3) return isoDate;
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
                 },
 
                 formatAndSetData(groupsObj) {
                     let formattedGroups = [];
 
                     const sapMap = {
-                        "C-09358": {
-                            "CardCode": "C016003",
-                            "CardName": "SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-71038": {
-                            "CardCode": "C000051",
-                            "CardName": "COML E IMPORTADORA SAO SEBASTIAO LT",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-06057": {
-                            "CardCode": "C009230",
-                            "CardName": "SENDAS DISTRIBUIDORA S/A",
-                            "GroupName": "ASSAI  SP"
-                        },
-                        "C-00185": {
-                            "CardCode": "C004431",
-                            "CardName": "COMERCIAL OSVALDO TARORA LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-07424": {
-                            "CardCode": "C004997",
-                            "CardName": "SUPERMERCADO SHIBATA TAUBATE LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-46079": {
-                            "CardCode": "C008964",
-                            "CardName": "SUPERMERCADOS SOLAR LTDA",
-                            "GroupName": "NAGUMO"
-                        },
-                        "C-20276": {
-                            "CardCode": "C014191",
-                            "CardName": "SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-48093": {
-                            "CardCode": "C005904",
-                            "CardName": "SUPERMERCADO SHIBATA LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-10432": {
-                            "CardCode": "C006726",
-                            "CardName": "SHIBATA EMPORIO LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-50472": {
-                            "CardCode": "C014799",
-                            "CardName": "SUPERMERCADO SHIBATA JACAREI LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-15061": {
-                            "CardCode": "C012194",
-                            "CardName": "SHIBATA CACAPAVA ATACADO E VAREJO DE MERCADORIAS EM GERAL LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-17349": {
-                            "CardCode": "C014486",
-                            "CardName": "SK SUPERMERCADOS LTDA",
-                            "GroupName": "SHIBATA"
-                        },
-                        "C-45543": {
-                            "CardCode": "C008631",
-                            "CardName": "CARREFOUR COMERCIO E INDUSTRIA LTDA",
-                            "GroupName": "CARREFOUR SP"
-                        },
-                        "C-07705": {
-                            "CardCode": "C002254",
-                            "CardName": "MIXTER ATACADO E VAREJO DE GENEROS ALIMENTICIOS LTDA",
-                            "GroupName": "NAGUMO"
-                        },
-                        "C-04744": {
-                            "CardCode": "C002548",
-                            "CardName": "MERCANTIL VISTA VERDE LTDA",
-                            "GroupName": "NAGUMO"
-                        },
-                        "C-93209": {
-                            "CardCode": "C008465",
-                            "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA",
-                            "GroupName": "ATACADAO SP"
-                        },
-                        "C-05868": {
-                            "CardCode": "C007144",
-                            "CardName": "COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
-                            "GroupName": "ZARAGOZA"
-                        },
-                        "C-75315": {
-                            "CardCode": "C004300",
-                            "CardName": "ATACADAO S.A.",
-                            "GroupName": "ATACADAO SP"
-                        }
+                        "C-09358": { "CardCode": "C016003", "CardName": "SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "GroupName": "SHIBATA" },
+                        "C-71038": { "CardCode": "C000051", "CardName": "COML E IMPORTADORA SAO SEBASTIAO LT", "GroupName": "SHIBATA" },
+                        "C-06057": { "CardCode": "C009230", "CardName": "SENDAS DISTRIBUIDORA S/A", "GroupName": "ASSAI SP" },
+                        "C-00185": { "CardCode": "C004431", "CardName": "COMERCIAL OSVALDO TARORA LTDA", "GroupName": "SHIBATA" },
+                        "C-07424": { "CardCode": "C004997", "CardName": "SUPERMERCADO SHIBATA TAUBATE LTDA", "GroupName": "SHIBATA" },
+                        "C-46079": { "CardCode": "C008964", "CardName": "SUPERMERCADOS SOLAR LTDA", "GroupName": "NAGUMO" },
+                        "C-20276": { "CardCode": "C014191", "CardName": "SHIBATA COMERCIO E ATACADO DE PRODUTOS EM GERAL LTDA", "GroupName": "SHIBATA" },
+                        "C-48093": { "CardCode": "C005904", "CardName": "SUPERMERCADO SHIBATA LTDA", "GroupName": "SHIBATA" },
+                        "C-10432": { "CardCode": "C006726", "CardName": "SHIBATA EMPORIO LTDA", "GroupName": "SHIBATA" },
+                        "C-50472": { "CardCode": "C014799", "CardName": "SUPERMERCADO SHIBATA JACAREI LTDA", "GroupName": "SHIBATA" },
+                        "C-15061": { "CardCode": "C012194", "CardName": "SHIBATA CACAPAVA ATACADO E VAREJO DE MERCADORIAS EM GERAL LTDA", "GroupName": "SHIBATA" },
+                        "C-17349": { "CardCode": "C014486", "CardName": "SK SUPERMERCADOS LTDA", "GroupName": "SHIBATA" },
+                        "C-45543": { "CardCode": "C008631", "CardName": "CARREFOUR COMERCIO E INDUSTRIA LTDA", "GroupName": "CARREFOUR SP" },
+                        "C-07705": { "CardCode": "C002254", "CardName": "MIXTER ATACADO E VAREJO DE GENEROS ALIMENTICIOS LTDA", "GroupName": "NAGUMO" },
+                        "C-04744": { "CardCode": "C002548", "CardName": "MERCANTIL VISTA VERDE LTDA", "GroupName": "NAGUMO" },
+                        "C-93209": { "CardCode": "C008465", "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA", "GroupName": "ATACADAO SP" },
+                        "C-05868": { "CardCode": "C007144", "CardName": "COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "GroupName": "ZARAGOZA" },
+                        "C-75315": { "CardCode": "C004300", "CardName": "ATACADAO S.A.", "GroupName": "ATACADAO SP" }
                     };
 
-                    // --- INÍCIO DO RE-AGRUPAMENTO FRONTEND (WORKAROUND LOCAL) ---
+                    // --- REAGRUPAMENTO FRONTEND COM sapMap ---
                     let regrouped = {};
                     if (groupsObj) {
                         for (const [oldGroupName, groupData] of Object.entries(groupsObj)) {
                             if (groupData.clients) {
                                 for (const [cnpj, clientData] of Object.entries(groupData.clients)) {
-                                    let sapInfo = sapMap[cnpj] || { CardCode: cnpj, CardName: clientData.name, GroupName: oldGroupName };
+                                    let sapInfo = sapMap[cnpj] || { CardCode: cnpj, CardName: clientData.name || cnpj, GroupName: oldGroupName };
                                     let newGroupName = sapInfo.GroupName;
                                     let newLabel = `[${sapInfo.CardCode}] ${sapInfo.CardName}`;
 
@@ -629,69 +559,61 @@
                         }
                     }
                     groupsObj = regrouped;
-                    // --- FIM DO RE-AGRUPAMENTO ---
+                    // --- FIM DO REAGRUPAMENTO ---
 
                     if (groupsObj) {
                         for (const [groupName, groupData] of Object.entries(groupsObj)) {
                             let clientsArray = [];
                             if (groupData.clients) {
                                 for (const [clientCode, clientData] of Object.entries(groupData.clients)) {
-                                    clientsArray.push({
-                                        ...clientData
-                                    });
+                                    clientsArray.push({ ...clientData });
                                 }
                             }
                             formattedGroups.push({
                                 groupName: groupName,
                                 totalSuccess: groupData.total_success || 0,
                                 totalError: groupData.total_error || 0,
+                                totalRecovered: groupData.total_recovered || 0,
                                 clients: clientsArray
                             });
                         }
                     }
                     this.rawGroupData = formattedGroups;
-                    this.expandedGroups = {}; // reset state
+                    this.expandedGroups = {};
                 },
 
                 async requestCustomSearch() {
-                    // Previne busca prematura se o usuário só digitou uma data
-                    if (!this.startDate || !this.endDate) {
-                        return; // Só faz a busca quando ambos estiverem preenchidos
-                    }
+                    if (!this._initialized) return;
+                    if (!this.startDate || !this.endDate) return;
 
                     try {
                         this.isSearching = true;
-
                         const startStr = this.formatToBRDate(this.startDate);
                         const endStr = this.formatToBRDate(this.endDate);
                         const cacheId = `${startStr}_${endStr}`;
 
-                        // Verificar se existe em cache
+                        // Check cache
                         const cacheDoc = await db.collection('search_cache').doc(cacheId).get();
                         if (cacheDoc.exists) {
                             const data = cacheDoc.data();
                             this.formatAndSetData(data.result_data && data.result_data.groups ? data.result_data.groups : {});
                             this.isSearching = false;
-                            this.showToast('⚡ Dados carregados do cache instantaneamente!');
+                            this.showToast('Dados do cache carregados!');
                             return;
                         }
 
-                        // Se não estiver em cache, cria o job
+                        // Create Job
                         const jobRef = await db.collection('search_jobs').add({
                             status: 'pending',
-                            created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                            query_params: {
-                                start_date: startStr,
-                                end_date: endStr
-                            }
+                            created_at: Date.now(), // Fixed: using manual timestamp to avoid 400 on some clients
+                            query_params: { start_date: startStr, end_date: endStr }
                         });
-
                         this.listenToJob(jobRef.id);
-                        this.showToast('Pesquisa enviada! Aguardando servidor...');
+                        this.showToast('Solicitação enviada ao servidor...');
                     } catch (e) {
-                        console.error(e);
+                        console.error("Search Error:", e);
                         this.isSearching = false;
-                        this.showToast('Erro ao enviar pesquisa.');
+                        this.showToast('Erro ao realizar busca Firestore.');
                     }
                 },
 
@@ -699,194 +621,82 @@
                     const unsubscribe = db.collection('search_jobs').doc(jobId).onSnapshot((doc) => {
                         if (!doc.exists) return;
                         const data = doc.data();
-
                         if (data.status === 'completed') {
-                            this.showToast('Pesquisa concluída!');
                             this.formatAndSetData(data.result_data && data.result_data.groups ? data.result_data.groups : {});
                             this.isSearching = false;
+                            this.showToast('Concluído!');
                             unsubscribe();
                         } else if (data.status === 'error') {
-                            this.showToast('Erro na pesquisa: ' + data.error_message);
+                            this.showToast('Erro: ' + data.error_message);
                             this.isSearching = false;
                             unsubscribe();
-                        } else if (data.status === 'processing') {
-                            this.showToast('Processando no servidor... (Aguarde)');
                         }
                     });
                 },
 
-                formatToBRDate(isoDate) {
-                    if (!isoDate) {
-                        const today = new Date();
-                        return today.getDate().toString().padStart(2, '0') + '-' + (today.getMonth() + 1).toString().padStart(2, '0') + '-' + today.getFullYear();
-                    }
-                    const parts = isoDate.split('-');
-                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                toggleGroup(name) { this.expandedGroups[name] = !this.expandedGroups[name]; },
+                isExpanded(name) { return !!this.expandedGroups[name]; },
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.visible = true;
+                    setTimeout(() => { this.toast.visible = false; }, 3000);
                 },
+                copyText(text) { navigator.clipboard.writeText(text); this.showToast('Copiado!'); },
+                copyOrders(orders) { if (orders) this.copyText(orders.join(', ')); },
+                recoveredOrders(c) { return (c.success_orders || []).filter(id => (c.error_orders || []).includes(id)); },
+                exclusiveErrorOrders(c) { return (c.error_orders || []).filter(id => !(c.success_orders || []).includes(id)); },
+                flawlessOrders(c) { return (c.success_orders || []).filter(id => !(c.error_orders || []).includes(id)); },
 
                 init() {
-                    // Start loading data from Firestore
+                    console.log("[Dashboard] Init Version:", this.version);
                     this.loadFromCache();
-                    // FIX #4: datas mockadas removidas - last_transaction_date deve vir do backend
-                    // Se ausente, o campo simplesmente não é exibido (x-show já trata isso)
-
                     this.initChart();
-
-                    // FIX #3: expandAll usa objeto reativo
                     this.$watch('expandAll', (val) => {
                         if (val) {
-                            const expanded = {};
-                            this.rawGroupData.forEach(g => { expanded[g.groupName] = true; });
-                            this.expandedGroups = expanded;
-                        } else {
-                            this.expandedGroups = {};
-                        }
+                            const exp = {};
+                            this.rawGroupData.forEach(g => { exp[g.groupName] = true; });
+                            this.expandedGroups = exp;
+                        } else { this.expandedGroups = {}; }
                     });
-
-                    this.$watch('filteredStats', (val) => {
-                        this.updateChart(val);
-                    });
+                    this.$watch('filteredStats', (val) => this.updateChart(val));
+                    this.$nextTick(() => { this._initialized = true; });
                 },
 
-                // FIX #8: acentuação corrigida
                 get dateRangeText() {
-                    const fmt = (d) => {
-                        if (!d) return '';
-                        const p = d.split('-');
-                        return p[2] + '/' + p[1] + '/' + p[0];
-                    };
-                    if (this.startDate && this.endDate) return fmt(this.startDate) + ' até ' + fmt(this.endDate);
-                    if (this.startDate) return 'A partir de ' + fmt(this.startDate);
-                    if (this.endDate) return 'Até ' + fmt(this.endDate);
-                    return 'Todo o período';
+                    if (this.startDate && this.endDate) return `${this.formatDateToBR(this.startDate)} até ${this.formatDateToBR(this.endDate)}`;
+                    return "Selecione um período";
                 },
 
                 get filteredStats() {
                     let s = 0, e = 0, r = 0;
-                    this.filteredGroups.forEach(g => {
-                        s += g.totalSuccess;
-                        e += g.totalError;
-                        r += g.totalRecovered;
-                    });
+                    this.filteredGroups.forEach(g => { s += g.totalSuccess; e += g.totalError; r += g.totalRecovered; });
                     return { total: s + e + r, success: s, error: e, recovered: r };
                 },
 
                 get filteredGroups() {
-                    let groups = this.rawGroupData;
-
-                    groups = groups.map(g => {
+                    let q = this.search.toLowerCase();
+                    return this.rawGroupData.map(g => {
                         const fc = g.clients.map(c => {
                             const recLen = this.recoveredOrders(c).length;
-                            return {
-                                ...c,
-                                displaySuccess: Math.max(0, c.success - recLen),
-                                displayError: Math.max(0, c.error - recLen),
-                                recoveredCount: recLen
-                            };
+                            return { ...c, displaySuccess: Math.max(0, c.success - recLen), displayError: Math.max(0, c.error - recLen), recoveredCount: recLen };
                         });
-                        return {
-                            ...g,
-                            clients: fc,
-                            totalSuccess: fc.reduce((sum, c) => sum + c.displaySuccess, 0),
-                            totalError: fc.reduce((sum, c) => sum + c.displayError, 0),
-                            totalRecovered: fc.reduce((sum, c) => sum + c.recoveredCount, 0)
-                        };
-                    });
-
-                    if (this.search) {
-                        const q = this.search.toLowerCase();
-                        groups = groups.filter(g =>
-                            g.groupName.toLowerCase().includes(q) ||
-                            g.clients.some(c => c.label.toLowerCase().includes(q))
-                        );
-                    }
-
-                    return groups;
-                },
-
-                // FIX #3: leitura via propriedade de objeto
-                isExpanded(name) { return !!this.expandedGroups[name]; },
-
-                // FIX #3: toggle via atribuição reativa
-                toggleGroup(name) {
-                    this.expandedGroups = {
-                        ...this.expandedGroups,
-                        [name]: !this.expandedGroups[name]
-                    };
-                },
-
-                // FIX #5: pedidos exclusivos de erro (remove os que também aparecem em success_orders)
-                exclusiveErrorOrders(client) {
-                    const successSet = new Set(client.success_orders);
-                    const filtered = client.error_orders.filter(o => !successSet.has(o));
-                    return [...new Set(filtered)];
-                },
-
-                // Recuperados: pedidos que estavam com erro mas agora estão na lista de sucesso
-                recoveredOrders(client) {
-                    const successSet = new Set(client.success_orders);
-                    const filtered = client.error_orders.filter(o => successSet.has(o));
-                    return [...new Set(filtered)];
-                },
-
-                // Flawless: pedidos que estão em sucesso e NUNCA estiveram na lista de erro
-                flawlessOrders(client) {
-                    const errorSet = new Set(client.error_orders);
-                    const filtered = client.success_orders.filter(o => !errorSet.has(o));
-                    return [...new Set(filtered)];
-                },
-
-                // FIX #6: .catch() em ambas as funções de cópia
-                copyText(text) {
-                    navigator.clipboard.writeText(text)
-                        .then(() => this.showToast('Copiado: ' + text))
-                        .catch(() => this.showToast('Erro ao copiar. Tente manualmente.'));
-                },
-
-                copyOrders(orders) {
-                    const txt = orders.join(', ');
-                    navigator.clipboard.writeText(txt)
-                        .then(() => this.showToast(orders.length + ' pedidos copiados!'))
-                        .catch(() => this.showToast('Erro ao copiar. Tente manualmente.'));
-                },
-
-                showToast(msg) {
-                    this.toast.message = msg;
-                    this.toast.visible = true;
-                    setTimeout(() => this.toast.visible = false, 3000);
+                        return { ...g, clients: fc, totalSuccess: fc.reduce((a, b) => a + b.displaySuccess, 0), totalError: fc.reduce((a, b) => a + b.displayError, 0), totalRecovered: fc.reduce((a, b) => a + b.recoveredCount, 0) };
+                    }).filter(g => !q || g.groupName.toLowerCase().includes(q) || g.clients.some(c => c.label.toLowerCase().includes(q)));
                 },
 
                 initChart() {
                     const ctx = document.getElementById('kpiChart').getContext('2d');
+                    if (chartInstance) chartInstance.destroy(); // Fix potential reuse error
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
-                        data: {
-                            labels: ['Sucesso', 'Recuperado', 'Erro'],
-                            datasets: [{
-                                data: [0, 0, 0],
-                                backgroundColor: ['#10B981', '#3b82f6', '#EF4444'],
-                                borderWidth: 0,
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            cutout: '75%',
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: { legend: { display: false } }
-                        }
+                        data: { labels: ['Sucesso', 'Recuperado', 'Erro'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#10B981', '#3b82f6', '#EF4444'], borderWidth: 0 }] },
+                        options: { cutout: '75%', responsive: true, plugins: { legend: { display: false } } }
                     });
-                    this.updateChart(this.filteredStats);
                 },
-
-                updateChart(stats) {
-                    if (chartInstance) {
-                        chartInstance.data.datasets[0].data = [stats.success, stats.recovered, stats.error];
-                        chartInstance.update();
-                    }
-                }
-            }
+                updateChart(stats) { if (chartInstance) { chartInstance.data.datasets[0].data = [stats.success, stats.recovered, stats.error]; chartInstance.update(); } }
+            };
         }
+
     </script>
 </body>
 

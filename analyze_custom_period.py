@@ -646,6 +646,11 @@ def analyze_period(start_date, end_date, return_data=False):
                             
                             formatted_date = parse_date(dhe)
                             
+                            # Filtro estrito: Apenas pedidos com dataEmissao ORIGINADA no periodo selecionado
+                            only_date = formatted_date[:10] if formatted_date else ""
+                            if only_date not in date_list:
+                                continue
+                            
                             row = {
                                 "Arquivo": filename,
                                 "Status": status,
@@ -820,8 +825,10 @@ def analyze_period(start_date, end_date, return_data=False):
         client['success_orders'] = list(dict.fromkeys(client['success_orders']))
         client['error_orders']   = list(dict.fromkeys(client['error_orders']))
         client['corrected_orders'] = list(dict.fromkeys(client.get('corrected_orders', [])))
-        # Recalcular success a partir dos pedidos únicos
+        
+        # Recalcular stats a partir dos pedidos únicos
         client['success'] = len(client['success_orders'])
+        client['error']   = len(client['error_orders'])
 
     # Recalcular totais do grupo a partir dos clientes já deduplicados
     for grp, gdata in group_stats.items():
@@ -892,58 +899,18 @@ def analyze_period(start_date, end_date, return_data=False):
 
 def inject_modern_html(group_stats, period_label):
     """
-    Injects freshly computed group_stats as rawGroupData into relatorio_analise_moderno.html.
-    Replaces the line starting with 'const rawGroupData = ' with updated data.
+    DISABILITADO: Nao sobrescreve mais o relatorio_analise_moderno.html automaticamente
+    para evitar restaurar estados persistentes indesejados.
     """
-    modern_html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorio_analise_moderno.html")
-    if not os.path.exists(modern_html_path):
-        print(f"[inject_modern_html] Arquivo nao encontrado: {modern_html_path}")
-        return
+    print(f"[inject_modern_html] SKIP: Sobrescrita automatica desabilitada para manter dashboard limpo.")
+    # Se quiser gerar um arquivo estatico, salve em outro nome:
+    # static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorio_estatico.html")
+    return
 
-    # Build groups_data in the same format as the HTML expects
-    groups_data = []
-    sorted_groups = sorted(group_stats.items(), key=lambda x: x[1]['total_error'], reverse=True)
-    for grp_name, stats in sorted_groups:
-        clients_list = []
-        sorted_clients = sorted(stats['clients'].items(), key=lambda x: x[1]['error'], reverse=True)
-        for code, cli_stats in sorted_clients:
-            clients_list.append({
-                'label': f"[{code}] {cli_stats['name']}",
-                'success': cli_stats['success'],
-                'error': cli_stats['error'],
-                'error_types': cli_stats['error_types'],
-                'success_orders': cli_stats.get('success_orders', []),
-                'error_orders': cli_stats.get('error_orders', []),
-                'corrected_orders': cli_stats.get('corrected_orders', []),
-                'last_transaction_date': cli_stats.get('last_transaction_date', '')
-            })
-        groups_data.append({
-            'groupName': grp_name,
-            'totalSuccess': stats['total_success'],
-            'totalError': stats['total_error'],
-            'clients': clients_list
-        })
-
-    new_raw_data_line = f"        const rawGroupData = {json.dumps(groups_data, ensure_ascii=False)};\r\n"
-
-    with open(modern_html_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    # Find and replace the rawGroupData line
-    import re as _re
-    pattern = r'        const rawGroupData = \[.*?\];\r?\n'
-    new_content = _re.sub(pattern, new_raw_data_line, content, count=1, flags=_re.DOTALL)
-
-    if new_content == content:
-        print("[inject_modern_html] AVISO: padrao rawGroupData nao encontrado no HTML moderno.")
-        return
-
-    with open(modern_html_path, 'w', encoding='utf-8', newline='') as f:
-        f.write(new_content)
-
-    print(f"[inject_modern_html] rawGroupData atualizado em relatorio_analise_moderno.html ({len(groups_data)} grupos, periodo: {period_label})")
 
 if __name__ == "__main__":
+    import sys
     load_cache()
-    analyze_period("01-01-2026", "19-02-2026")
-
+    start_date = sys.argv[1] if len(sys.argv) > 1 else "01-01-2026"
+    end_date = sys.argv[2] if len(sys.argv) > 2 else "19-02-2026"
+    analyze_period(start_date, end_date)
