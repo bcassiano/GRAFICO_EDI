@@ -146,42 +146,44 @@ def parse_date(date_str):
 
 def process_logs(start_date, end_date):
     """Lógica pesada para processar logs locais baseada em analyze_custom_period.py"""
+    # Resetar variáveis de controle dentro da função (evita vazamento em execuções repetidas)
+    absolute_successes = set()
+    pending_errors = [] # Lista de (cnpj, nf, error_msg, formatted_date)
+    cnpj_stats = {} 
+    order_to_cnpj = {}
+    
     start = datetime.strptime(start_date, "%d-%m-%Y")
     end = datetime.strptime(end_date, "%d-%m-%Y")
     delta = end - start
     date_list = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(delta.days + 1)]
     
-    seen_errors = set() 
-    seen_successes = set()
-    cnpj_stats = {} 
-    
-    order_to_cnpj = {}
-    
+    # Prioridade de diretórios de log conforme o sistema operacional
+    current_log_dirs = [LOG_DIR, os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'LOGS_EDI')]
+    if os.name == 'nt':
+        # No Windows do usuário, os logs estão em C:\PERSONAL\BANCO_DE_DADOS\LOGS_EDI
+        win_log_dir = os.path.join(current_dir, '..', 'LOGS_EDI')
+        current_log_dirs.insert(0, win_log_dir)
+            
     for target_date in date_list:
         filename = f"{target_date}.log"
-        local_path = os.path.join(LOG_DIR, filename)
+        local_path = None
         
-        # Fallback to current dir if LOG_DIR missing (for parsing local tests)
-        if not os.path.exists(local_path):
-            local_path = os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'LOGS_EDI', filename)
+        for d in current_log_dirs:
+            path = os.path.join(d, filename)
+            if os.path.exists(path):
+                local_path = path
+                break
             
-        if not os.path.exists(local_path):
+        if not local_path:
             continue
             
         try:
             with open(local_path, 'r', encoding='utf-8', errors='replace') as file_obj:
                 for line in file_obj:
                     if "gravaLog(" in line:
-                        if "já cadastrado no SAP" in line:
-                            dup_match = re.search(r'Pedido\s+(\d+)\s+já\s+cadastrado', line)
-                            if dup_match:
-                                nf_exist = dup_match.group(1)
-                                if nf_exist in order_to_cnpj:
-                                    cnpj_exist = order_to_cnpj[nf_exist]
-                                    if cnpj_exist in cnpj_stats:
-                                        if nf_exist not in cnpj_stats[cnpj_exist]['success_orders']:
-                                            cnpj_stats[cnpj_exist]['success'] += 1
-                                            cnpj_stats[cnpj_exist]['success_orders'].append(nf_exist)
+                        # 1. Identificar pares (CNPJ, NF) com sucesso absoluto
+                        # Casos: Status "Sucesso" ou mensagem "já cadastrado no SAP"
+                        is_success_msg = "Sucesso" in line or "já cadastrado no SAP" in line
                         
                         json_start = line.find('{')
                         if json_start == -1: continue
@@ -211,21 +213,24 @@ def process_logs(start_date, end_date):
                             dhe = cabecalho.get("dataHoraEmissao", "")
                             nf = cabecalho.get("numeroPedidoComprador", "")
                             
-                            if nf and cnpj and cnpj != "Desconhecido":
-                                order_to_cnpj[nf] = cnpj
-                            
+                            if not nf or not cnpj or cnpj == "Desconhecido":
+                                continue
+
                             formatted_date = parse_date(dhe)
-                            
-                            # Filtro estrito: só conta pedidos cuja dataEmissao
-                            # caia dentro do intervalo selecionado
                             only_date = formatted_date[:10] if formatted_date else ""
+                            
+                            # Filtro estrito por data de emissão
                             if only_date not in date_list:
                                 continue
+
+                            key = (cnpj, nf)
+                            order_to_cnpj[nf] = cnpj
                             
+                            # Inicializar stats do CNPJ se necessário
                             if cnpj not in cnpj_stats:
                                 cnpj_stats[cnpj] = {
-                                    'success': 0, 'error': 0, 'name': f'CNPJ: {cnpj}', 
-                                    'code': f'C-{cnpj[:5]}', 'group': 'Não Identificado',
+                                    'success': 0, 'error': 0, 'name': f'CNPJ: {cnpj}',
+                                    'code': f'CNPJ_{cnpj}', 'group': 'Não Identificado',
                                     'errors': {}, 'error_orders': [], 'success_orders': [],
                                     'last_transaction_date': ''
                                 }
@@ -233,42 +238,57 @@ def process_logs(start_date, end_date):
                             if formatted_date and formatted_date > cnpj_stats[cnpj]['last_transaction_date']:
                                 cnpj_stats[cnpj]['last_transaction_date'] = formatted_date
 
-                            if status == "Sucesso":
-                                success_key = (cnpj, nf) if nf else None
-                                if success_key and success_key not in seen_successes:
-                                    seen_successes.add(success_key)
+                            if status == "Sucesso" or "já cadastrado no SAP" in line or "já cadastrado no SAP" in error_msg:
+                                if key not in absolute_successes:
+                                    absolute_successes.add(key)
+                                    # Incrementa sucesso apenas uma vez por (cnpj, nf)
                                     cnpj_stats[cnpj]['success'] += 1
                                     cnpj_stats[cnpj]['success_orders'].append(nf)
-                                    
                             elif status == "Erro":
-                                error_key = (cnpj, nf)
-                                if error_key not in seen_errors:
-                                    seen_errors.add(error_key)
-                                    cnpj_stats[cnpj]['error'] += 1
-                                    
-                                    clean_msg = error_msg.replace('"', '').replace("'", "")
-                                    short_msg = (clean_msg[:50] + '..') if len(clean_msg) > 50 else clean_msg
-                                    if short_msg not in cnpj_stats[cnpj]['errors']:
-                                        cnpj_stats[cnpj]['errors'][short_msg] = 0
-                                    cnpj_stats[cnpj]['errors'][short_msg] += 1
-                                    
-                                    if nf and nf not in cnpj_stats[cnpj]['error_orders']:
-                                        cnpj_stats[cnpj]['error_orders'].append(nf)
+                                # Armazena para processamento posterior (Passo 2)
+                                pending_errors.append((cnpj, nf, error_msg, formatted_date))
+                                
                         except json.JSONDecodeError:
                             pass
         except Exception as e:
             print(f"File Error: {e}")
 
-    # --- NOVO: RESOLVER CNPJs no SAP e API ---
+    # --- PASSO 2: Processar erros pendentes ---
+    # Somente contabiliza erro se NÃO houver sucesso absoluto para o par (CNPJ, NF) no dia.
+    processed_error_keys = set()
+    for cnpj, nf, error_msg, f_date in pending_errors:
+        key = (cnpj, nf)
+        if key not in absolute_successes and key not in processed_error_keys:
+            processed_error_keys.add(key)
+            cnpj_stats[cnpj]['error'] += 1
+            
+            clean_msg = error_msg.replace('"', '').replace("'", "")
+            short_msg = (clean_msg[:50] + '..') if len(clean_msg) > 50 else clean_msg
+            
+            if short_msg not in cnpj_stats[cnpj]['errors']:
+                cnpj_stats[cnpj]['errors'][short_msg] = 0
+            cnpj_stats[cnpj]['errors'][short_msg] += 1
+            
+            if nf not in cnpj_stats[cnpj]['error_orders']:
+                cnpj_stats[cnpj]['error_orders'].append(nf)
+
+    # --- RESOLVER CNPJs no SAP e API ---
     load_cache()
     unique_cnpjs = list(cnpj_stats.keys())
-    print(f"Resolvendo {len(unique_cnpjs)} CNPJs no SAP e formatando Atacadão...")
+    print(f"Resolvendo {len(unique_cnpjs)} CNPJs no SAP...")
     sap_mapping = get_sap_data(unique_cnpjs)
-    
+
+    # Mapa de CNPJs raiz (8 primeiros dígitos) para redes com filiais via EDI
+    # cujo CNPJ específico não existe no cadastro SAP da Ruston.
+    # Diagnosticado em 2026-03-05 via investigação de CNPJs não identificados.
+    CNPJ_ROOT_MAP = {
+        "01157555": { "CardCode": "C001340", "CardName": "TENDA ATACADO SA",               "GroupName": "TENDA"       },
+        "93209170": { "CardCode": "C008465", "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA", "GroupName": "ATACADAO SP" },
+    }
+
     for cnpj in unique_cnpjs:
-        # A chave no sap_mapping é o CNPJ limpo ou original dependendo do match.
-        # get_sap_data retorna um mapa onde a chave é o que foi encontrado no OCRD.
-        # Precisamos testar variações para garantir o match.
+        # FIX: get_sap_data mapeia pela chave do CNPJ original do log (não pela variante limpa).
+        # Testamos o CNPJ original primeiro, depois variantes limpas para garantir o match.
         raw_cnpj = re.sub(r'[^0-9]', '', str(cnpj))
         variants = [cnpj, raw_cnpj, raw_cnpj.zfill(14), raw_cnpj.lstrip('0')]
         
@@ -278,11 +298,22 @@ def process_logs(start_date, end_date):
                 sap_info = sap_mapping[v]
                 break
         
+        if not sap_info:
+            # Fallback: tenta pelo CNPJ raiz (8 primeiros dígitos) para filiais de grandes redes
+            cnpj_root = raw_cnpj.zfill(14)[:8]
+            if cnpj_root in CNPJ_ROOT_MAP:
+                sap_info = CNPJ_ROOT_MAP[cnpj_root]
+                print(f"  Resolvido via CNPJ raiz '{cnpj_root}': {cnpj} -> {sap_info['CardCode']}")
+
         if sap_info:
+            card_code = sap_info.get('CardCode', '')
             clean_name = sap_info['CardName']
-            if sap_info['CardCode']:
-                cnpj_stats[cnpj]['code'] = sap_info['CardCode']
-            # Usa nome original (ex: Atacadão S/A)
+            # Atribui o CardCode SAP real (substitui o código temporário CNPJ_xxx)
+            if card_code:
+                cnpj_stats[cnpj]['code'] = card_code
+            else:
+                # Se o SAP não retornou CardCode, mantém o CNPJ completo como fallback único
+                cnpj_stats[cnpj]['code'] = f'CNPJ_{cnpj}'
             cnpj_stats[cnpj]['name'] = clean_name
             
             grp = sap_info['GroupName']
@@ -293,9 +324,12 @@ def process_logs(start_date, end_date):
             else:
                 cnpj_stats[cnpj]['group'] = grp
         else:
+            # Não encontrado no SAP nem por raiz: mantém código temporário único e tenta API
+            # O código CNPJ_xxx garante que esses clientes não colidam entre si
             api_name = get_api_data(cnpj)
             if api_name:
                 cnpj_stats[cnpj]['name'] = api_name
+            # group permanece 'Não Identificado' para clientes sem resolução SAP/API
     # -----------------------------------------
 
     # Aggregação final
