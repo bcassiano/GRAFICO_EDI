@@ -26,7 +26,8 @@ OUTPUT_SUCCESS_CSV = "relatorio_sucesso.csv"
 OUTPUT_ERROR_CSV = "relatorio_erro.csv"
 OUTPUT_HTML = "relatorio_analise.html"
 CNPJ_CACHE_FILE = "cnpj_cache.json"
-CNPJ_ROOT_MAP_FILE = "cnpj_root_map.json"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+CNPJ_ROOT_MAP_FILE = os.path.join(CURRENT_DIR, "cnpj_root_map.json")
 
 # Global Cache
 _cnpj_cache = {}

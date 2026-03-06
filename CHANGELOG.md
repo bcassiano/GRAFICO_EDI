@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [1.3.1] - 2026-03-06
+### Corrigido
+- Fix no carregamento do `cnpj_root_map.json` para usar caminho absoluto, garantindo funcionamento em deploy/automação.
+- Unificação da rede **Comercial Zaragoza / Spani Atacadista** via fallback de raiz de CNPJ (`05868574`), removendo-os da categoria "Não Identificado".
+
 ## [1.3.0] - 2026-03-06
 ### Segurança
 - Criado `.gitignore` na raiz do projeto para proteger `remote_env.txt`, `firebase-service-account.json`, arquivos `.env` e logs de serem comitados inadvertidamente.
