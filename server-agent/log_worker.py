@@ -102,8 +102,7 @@ def get_sap_data(cnpj_list):
              OR REPLACE(REPLACE(REPLACE(ISNULL(T1.TaxId0,''),'.',''),'/',''),'-','') IN ('{in_clause}')
              OR REPLACE(REPLACE(REPLACE(ISNULL(T1.TaxId4,''),'.',''),'/',''),'-','') IN ('{in_clause}')
             """
-            
-            conn = pymssql.connect(server='192.168.1.85:1433', user='powerbi', password='P0w3rB1@25', database='RUSTON_PRODUCAO', charset='UTF-8')
+            conn = pymssql.connect(server='192.168.1.177:1433', user='sa', password='$@pRus70n#', database='RUST0N_PRODUCAO', charset='UTF-8')
             cursor = conn.cursor(as_dict=True)
             cursor.execute(query)
             results = cursor.fetchall()
