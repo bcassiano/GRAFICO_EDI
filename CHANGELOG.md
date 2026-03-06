@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.3.0] - 2026-03-06
+### Segurança
+- Criado `.gitignore` na raiz do projeto para proteger `remote_env.txt`, `firebase-service-account.json`, arquivos `.env` e logs de serem comitados inadvertidamente.
+- Migradas credenciais hardcoded (`P0w3rB1@25`, `Fant0n@123!`) de `_test_dump_sql.py` e `server-agent/log_worker.py` para `os.environ.get()` com fallbacks seguros de IP e database (sem senha padrão).
+- Adicionada documentação completa do sistema em `GRAFICO_EDI_DOCS.md`.
+
 ## [1.2.1] - 2026-03-06
 ### Adicionado
 - Integração do `relatorio_analise_moderno.html` com o novo sistema de mapeamento.

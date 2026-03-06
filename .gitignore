@@ -1,0 +1,37 @@
+# ==============================================
+# .gitignore - GRAFICO_EDI
+# ==============================================
+
+# Credenciais e Segredos
+remote_env.txt
+.env
+*.env
+*_secrets.py
+*secret*.json
+firebase-service-account.json
+server-agent/firebase-service-account.json
+
+# Cache e dados gerados em runtime
+cnpj_cache.json
+sap_mapping.json
+ai_daily_context.json
+recent_sap_logs.json
+*.log
+
+# Outputs de análise (regeneráveis)
+out.txt
+analysis_output.txt
+relatorio_analise.html
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Node.js
+node_modules/
+*.lock
+
+# Sistema 
+.DS_Store
+Thumbs.db
