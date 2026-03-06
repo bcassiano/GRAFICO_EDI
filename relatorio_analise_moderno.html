@@ -478,12 +478,98 @@
         function reportData() {
             let chartInstance = null;
             return {
-                rawGroupData: [],
+                rawGroupData: [
+    {
+        "groupName": "Não Identificado (API/Outros)",
+        "totalSuccess": 1,
+        "totalError": 1,
+        "totalRecovered": 1,
+        "clients": [
+            {
+                "label": "[CNPJ_04128563000110] AES TIETE ENERGIA S.A.",
+                "success": 1,
+                "error": 1,
+                "error_types": {
+                    "Produto cod 123 nao encontrado)": 1
+                },
+                "success_orders": [
+                    "341854"
+                ],
+                "error_orders": [
+                    "341854"
+                ],
+                "last_transaction_date": "2026-03-05 11:00"
+            }
+        ]
+    },
+    {
+        "groupName": "TENDA",
+        "totalSuccess": 0,
+        "totalError": 1,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C001340] TENDA ATACADO SA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto cod 456 inativo)": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "999999"
+                ],
+                "last_transaction_date": "2026-03-05 12:00"
+            }
+        ]
+    },
+    {
+        "groupName": "CARREFOUR SP",
+        "totalSuccess": 3,
+        "totalError": 0,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C005746] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000127100675218"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:15"
+            },
+            {
+                "label": "[C005702] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000105100673801"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:42"
+            },
+            {
+                "label": "[C005704] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000125100676490"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:47"
+            }
+        ]
+    }
+],
                 isLoading: false,
                 isSearching: false,
                 search: '',
-                startDate: '',
-                endDate: '',
+                startDate: '2026-03-05',
+                endDate: '2026-03-06',
                 expandAll: false,
                 expandedGroups: {},
                 toast: { visible: false, message: "" },
@@ -491,7 +577,12 @@
                 version: '3.0.1',
 
                 async loadFromCache() {
-                    console.log("[Dashboard] loadFromCache: estado vazio forçado.");
+                    if (this.rawGroupData && this.rawGroupData.length > 0) {
+                        console.log("[Dashboard] Data available in rawGroupData, skipping cache/Firestore.");
+                        this.isLoading = false;
+                        return;
+                    }
+                    console.log("[Dashboard] loadFromCache: fetching from Firestore or empty.");
                     this.rawGroupData = [];
                     this.isLoading = false;
                 },
@@ -514,9 +605,11 @@
                     let formattedGroups = [];
 
                     const sapMap = {
+                        // === ENTRADAS LEGADAS (cache gerado ANTES da correção do backend) ===
+                        // Formato antigo: 'C-XXXXX' onde XXXXX são os 5 primeiros dígitos do CNPJ
                         "C-09358": { "CardCode": "C016003", "CardName": "SHIBATA COMERCIAL ATACADISTA DE MERCADORIAS EM GERAL LTDA", "GroupName": "SHIBATA" },
                         "C-71038": { "CardCode": "C000051", "CardName": "COML E IMPORTADORA SAO SEBASTIAO LT", "GroupName": "SHIBATA" },
-                        "C-06057": { "CardCode": "C009230", "CardName": "SENDAS DISTRIBUIDORA S/A", "GroupName": "ASSAI SP" },
+                        "C-06057": { "CardCode": "C005105", "CardName": "SENDAS DISTRIBUIDORA S/A", "GroupName": "ASSAI SP" },
                         "C-00185": { "CardCode": "C004431", "CardName": "COMERCIAL OSVALDO TARORA LTDA", "GroupName": "SHIBATA" },
                         "C-07424": { "CardCode": "C004997", "CardName": "SUPERMERCADO SHIBATA TAUBATE LTDA", "GroupName": "SHIBATA" },
                         "C-46079": { "CardCode": "C008964", "CardName": "SUPERMERCADOS SOLAR LTDA", "GroupName": "NAGUMO" },
@@ -531,7 +624,21 @@
                         "C-04744": { "CardCode": "C002548", "CardName": "MERCANTIL VISTA VERDE LTDA", "GroupName": "NAGUMO" },
                         "C-93209": { "CardCode": "C008465", "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA", "GroupName": "ATACADAO SP" },
                         "C-05868": { "CardCode": "C007144", "CardName": "COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA", "GroupName": "ZARAGOZA" },
-                        "C-75315": { "CardCode": "C004300", "CardName": "ATACADAO S.A.", "GroupName": "ATACADAO SP" }
+                        "C-75315": { "CardCode": "C004300", "CardName": "ATACADAO S.A.", "GroupName": "ATACADAO SP" },
+                        // FIX: TENDA legado C-01157 apontava para CardCode incorreto
+                        "C-01157": { "CardCode": "C001340", "CardName": "TENDA ATACADO SA", "GroupName": "TENDA" },
+
+                        // === ENTRADAS NOVO FORMATO (cache gerado APÓS correção do backend) ===
+                        // Formato novo: 'CNPJ_XXXXXXXXXXXXXXXX' para clientes cujo CNPJ não existe no SAP.
+                        // TENDA ATACADO: filial 0001-20 enviada pelo EDI não está no cadastro SAP.
+                        // Diagnosticado: 47 filiais TENDA cadastradas, mas não esta específica.
+                        // Resolução: agrupa na conta principal C001340.
+                        "CNPJ_01157555000120": { "CardCode": "C001340", "CardName": "TENDA ATACADO SA", "GroupName": "TENDA" },
+
+                        // ATACADÃO / WMS: CNPJ 93209170000108 é da bandeira WMS/Carrefour Atacadão.
+                        // Não existe no cadastro SAP da Ruston como cliente.
+                        // Resolução: agrupa no CardCode legado C008465 (WMS cadastrado).
+                        "CNPJ_93209170000108": { "CardCode": "C008465", "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA", "GroupName": "ATACADAO SP" }
                     };
 
                     // --- REAGRUPAMENTO FRONTEND COM sapMap ---
@@ -542,7 +649,17 @@
                                 for (const [cnpj, clientData] of Object.entries(groupData.clients)) {
                                     let sapInfo = sapMap[cnpj] || { CardCode: cnpj, CardName: clientData.name || cnpj, GroupName: oldGroupName };
                                     let newGroupName = sapInfo.GroupName;
-                                    let newLabel = `[${sapInfo.CardCode}] ${sapInfo.CardName}`;
+
+                                    // FIX: clientes não resolvidos pelo SAP chegam com code='CNPJ_xxxxx'
+                                    // Neste caso, usa o nome e CNPJ do backend sem expor o prefixo interno.
+                                    let displayCode = sapInfo.CardCode;
+                                    let displayName = sapInfo.CardName;
+                                    if (typeof displayCode === 'string' && displayCode.startsWith('CNPJ_')) {
+                                        const rawCnpj = displayCode.replace('CNPJ_', '');
+                                        displayCode = `CNPJ: ${rawCnpj}`;
+                                        displayName = clientData.name || rawCnpj;
+                                    }
+                                    let newLabel = `[${displayCode}] ${displayName}`;
 
                                     if (!regrouped[newGroupName]) {
                                         regrouped[newGroupName] = { clients: {}, total_success: 0, total_error: 0 };

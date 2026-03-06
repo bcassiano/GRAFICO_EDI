@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [1.2.1] - 2026-03-06
+### Adicionado
+- Integração do `relatorio_analise_moderno.html` com o novo sistema de mapeamento.
+- Implementação de injeção automática de dados estáticos no dashboard Alpine.js via `analyze_custom_period.py`.
+- Suporte a fallback de CNPJ Raiz também no gerador de relatórios local.
+
+## [1.2.0] - 2026-03-06
+- **Agente/Prompt**: Reescrito `ai_system_prompt.txt` com 10 regras completas cobrindo: sanitização de CNPJ (3 variantes), lógica de filiais por CNPJ raiz, separação por `GroupName`, chave composta de pedido e storno de erro por sucesso.
+- **Log Worker**: Externalizado `CNPJ_ROOT_MAP` do código Python para `cnpj_root_map.json` — permite adicionar novas redes/filiais sem deploy. Mapa ampliado de 2 para 5 entradas (Tenda, Atacadão SP, Carrefour, Zaragoza, Atacadão S.A.).
+- **Contexto Diário**: Enriquecido `ai_daily_context.json` com `redes_ativas_edi`, `cnpj_root_map_ativo` e `instrucao_separacao` para persistência de contexto operacional entre sessões do agente.
+
 ## [1.1.0] - 2026-03-05
 - **Log Worker**: Implementada lógica de "Sucesso Absoluto" para filtragem de erros históricos em memória, garantindo que sucessos anulem falhas no mesmo dia.
 - **Log Worker**: Adicionado sistema de fallback para resolução de CNPJs via raiz (8 dígitos) para suporte a grandes redes (Atacadão, Tenda) que compartilham pedidos entre filiais.

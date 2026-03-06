@@ -1,0 +1,29 @@
+{
+    "__doc__": "Mapa de fallback por CNPJ raiz (8 primeiros dígitos). Usado quando o CNPJ completo da filial não existe no cadastro SAP. Editável sem alterar código. Chave = 8 primeiros dígitos do CNPJ (sem pontos/barras/hífen, com zeros à esquerda se necessário).",
+    "__formato__": "\"XXXXXXXX\": { \"CardCode\": \"CXXXXXX\", \"CardName\": \"NOME NO SAP\", \"GroupName\": \"GRUPO NO OCRG\" }",
+    "01157555": {
+        "CardCode": "C001340",
+        "CardName": "TENDA ATACADO SA",
+        "GroupName": "TENDA"
+    },
+    "93209170": {
+        "CardCode": "C008465",
+        "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA",
+        "GroupName": "ATACADAO SP"
+    },
+    "45543915": {
+        "CardCode": "C002322",
+        "CardName": "CARREFOUR COMERCIO E INDUSTRIA LTDA",
+        "GroupName": "Clientes Agrupados (Fallback)"
+    },
+    "05868574": {
+        "CardCode": "C005868",
+        "CardName": "COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+        "GroupName": "Clientes Agrupados (Fallback)"
+    },
+    "75315333": {
+        "CardCode": "C008763",
+        "CardName": "ATACADAO S.A.",
+        "GroupName": "ATACADAO SP"
+    }
+}

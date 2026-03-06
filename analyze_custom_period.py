@@ -26,6 +26,7 @@ OUTPUT_SUCCESS_CSV = "relatorio_sucesso.csv"
 OUTPUT_ERROR_CSV = "relatorio_erro.csv"
 OUTPUT_HTML = "relatorio_analise.html"
 CNPJ_CACHE_FILE = "cnpj_cache.json"
+CNPJ_ROOT_MAP_FILE = "cnpj_root_map.json"
 
 # Global Cache
 _cnpj_cache = {}
@@ -45,6 +46,17 @@ def save_cache():
             json.dump(_cnpj_cache, f, ensure_ascii=False, indent=2)
     except:
         pass
+
+def load_cnpj_root_map():
+    """Carrega o mapa de fallback por CNPJ raiz (8 dígitos) do arquivo externo v1.2.0."""
+    try:
+        if os.path.exists(CNPJ_ROOT_MAP_FILE):
+            with open(CNPJ_ROOT_MAP_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return {k: v for k, v in data.items() if not k.startswith('__')}
+    except Exception as e:
+        print(f"AVISO: Erro ao carregar {CNPJ_ROOT_MAP_FILE}: {e}")
+    return {}
 
 def parse_date(date_str):
     if not date_str or len(date_str) < 12:
@@ -667,7 +679,9 @@ def analyze_period(start_date, end_date, return_data=False):
                                     'success': 0, 
                                     'error': 0, 
                                     'name': 'Desconhecido', 
-                                    'code': '', 
+                                    # FIX: Usa CNPJ completo como código temporário único.
+                                    # code='' (vazio) causava colisão de clientes distintos na agregação.
+                                    'code': f'CNPJ_{cnpj}', 
                                     'group': 'Não Identificado', 
                                     'errors': {}, 
                                     'error_orders': [],
@@ -731,23 +745,47 @@ def analyze_period(start_date, end_date, return_data=False):
     sap_data = get_sap_data(unique_cnpjs) 
     
     # 2. Enrich and Fallback
+    cnpj_root_map = load_cnpj_root_map()
+    print(f"Usando mapa de raízes com {len(cnpj_root_map)} redes cadastradas.")
+
     for cnpj in unique_cnpjs:
-        if cnpj in sap_data:
-            cnpj_stats[cnpj]['name'] = sap_data[cnpj]['CardName']
-            cnpj_stats[cnpj]['code'] = sap_data[cnpj]['CardCode']
-            cnpj_stats[cnpj]['group'] = sap_data[cnpj]['GroupName'] if sap_data[cnpj]['GroupName'] else "Sem Grupo SAP"
+        # FIX: testa variantes do CNPJ para garantir o match com a chave retornada por get_sap_data
+        raw_cnpj = re.sub(r'[^0-9]', '', str(cnpj))
+        variants_to_check = [cnpj, raw_cnpj, raw_cnpj.zfill(14), raw_cnpj.lstrip('0')]
+        
+        sap_info = None
+        for v in variants_to_check:
+            if v and v in sap_data:
+                sap_info = sap_data[v]
+                break
+        
+        # Fallback por CNPJ Raiz se não encontrado diretamente no SAP
+        if not sap_info:
+            raiz = raw_cnpj.zfill(14)[:8]
+            if raiz in cnpj_root_map:
+                sap_info = cnpj_root_map[raiz]
+                print(f"  [ROOT MATCH] {cnpj} -> {sap_info['CardCode']} ({sap_info['GroupName']})")
+
+        if sap_info:
+            card_code = sap_info.get('CardCode', '')
+            cnpj_stats[cnpj]['name'] = sap_info['CardName']
+            # Atribui o CardCode SAP real; se vazio, mantém CNPJ como chave única
+            cnpj_stats[cnpj]['code'] = card_code if card_code else f'CNPJ_{cnpj}'
+            
+            grp = sap_info.get('GroupName', 'Sem Grupo SAP')
+            # Padronização de nomes de grupos (opcional, como no worker)
+            if "Atacad" in grp or "Oeste" in grp:
+                cnpj_stats[cnpj]['group'] = "Atacadistas OESTE / SP"
+            elif "Alimentar" in grp or "Giro" in grp:
+                cnpj_stats[cnpj]['group'] = "Alimentar e Farma"
+            else:
+                cnpj_stats[cnpj]['group'] = grp
         else:
-            # Fallback to API
-            # print(f"CNPJ {cnpj} não encontrado no SAP. Buscando na API...")
+            # Fallback para API pública se não encontrado no SAP nem por Raiz
             api_name = get_api_data(cnpj)
-            
-            
-            # Additional Cache Logic for API results?
-            # User wants API ONLY if SAP fails.
-            
-            cnpj_stats[cnpj]['code'] = f"API-{cnpj}"
-            cnpj_stats[cnpj]['group'] = "Outros (API)"
-            
+            # Mantém código único CNPJ_xxx para evitar colisão na agregação
+            cnpj_stats[cnpj]['code'] = f'CNPJ_{cnpj}'
+            cnpj_stats[cnpj]['group'] = "Não Identificado (API/Outros)"
             if api_name:
                 cnpj_stats[cnpj]['name'] = api_name
             else:
@@ -899,13 +937,76 @@ def analyze_period(start_date, end_date, return_data=False):
 
 def inject_modern_html(group_stats, period_label):
     """
-    DISABILITADO: Nao sobrescreve mais o relatorio_analise_moderno.html automaticamente
-    para evitar restaurar estados persistentes indesejados.
+    Injeta os dados processados no arquivo relatorio_analise_moderno.html
+    sobrescrevendo a variável rawGroupData: [].
     """
-    print(f"[inject_modern_html] SKIP: Sobrescrita automatica desabilitada para manter dashboard limpo.")
-    # Se quiser gerar um arquivo estatico, salve em outro nome:
-    # static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorio_estatico.html")
-    return
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorio_analise_moderno.html")
+    if not os.path.exists(html_path):
+        print(f"[inject_modern_html] Erro: Arquivo {html_path} nao encontrado.")
+        return
+
+    # Converte o dicionario de grupos para a lista esperada pelo frontend
+    formatted_groups = []
+    for group_name, data in group_stats.items():
+        clients_list = []
+        total_recovered = 0
+        for code, client_data in data['clients'].items():
+            # Calcula recuperados (interseção de success_orders e error_orders)
+            success_set = set(client_data.get('success_orders', []))
+            error_set = set(client_data.get('error_orders', []))
+            recovered = len(success_set & error_set)
+            total_recovered += recovered
+            
+            clients_list.append({
+                'label': f"[{code}] {client_data['name']}",
+                'success': client_data['success'],
+                'error': client_data['error'],
+                'error_types': client_data['error_types'],
+                'success_orders': client_data['success_orders'],
+                'error_orders': client_data['error_orders'],
+                'last_transaction_date': client_data['last_transaction_date']
+            })
+            
+        formatted_groups.append({
+            'groupName': group_name,
+            'totalSuccess': data['total_success'],
+            'totalError': data['total_error'],
+            'totalRecovered': total_recovered,
+            'clients': clients_list
+        })
+
+    import json
+    json_data = json.dumps(formatted_groups, indent=4, ensure_ascii=False)
+    
+    with open(html_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Procura por rawGroupData: [], e substitui
+    target = "rawGroupData: [],"
+    if target in content:
+        new_content = content.replace(target, f"rawGroupData: {json_data},")
+        
+        # Também injeta as datas no x-model se possível
+        # startDate: '', -> startDate: 'YYYY-MM-DD',
+        try:
+            dates = period_label.split(" a ")
+            if len(dates) == 2:
+                # Converte DD-MM-YYYY para YYYY-MM-DD
+                d1 = dates[0].split("-")
+                d2 = dates[1].split("-")
+                if len(d1) == 3 and len(d2) == 3:
+                    iso_start = f"{d1[2]}-{d1[1]}-{d1[0]}"
+                    iso_end = f"{d2[2]}-{d2[1]}-{d2[0]}"
+                    new_content = new_content.replace("startDate: '',", f"startDate: '{iso_start}',")
+                    new_content = new_content.replace("endDate: '',", f"endDate: '{iso_end}',")
+        except:
+            pass
+
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"[inject_modern_html] Sucesso: {len(formatted_groups)} grupos injetados em {html_path}")
+    else:
+        print("[inject_modern_html] Erro: Marcador 'rawGroupData: [],' nao encontrado no HTML.")
 
 
 if __name__ == "__main__":

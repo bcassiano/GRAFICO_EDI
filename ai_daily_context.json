@@ -1,0 +1,53 @@
+{
+  "periodo": "05-03-2026 a 06-03-2026",
+  "total_transacoes": 1650,
+  "redes_ativas_edi": [
+    "TENDA",
+    "ATACADAO SP",
+    "Clientes Agrupados (Fallback)",
+    "Não Identificado"
+  ],
+  "cnpj_root_map_ativo": {
+    "01157555": "C001340 - TENDA ATACADO SA",
+    "93209170": "C008465 - WMS SUPERMERCADOS DO BRASIL LTDA (Atacadão SP)",
+    "45543915": "C002322 - CARREFOUR COMERCIO E INDUSTRIA LTDA",
+    "05868574": "C005868 - COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+    "75315333": "C008763 - ATACADAO S.A."
+  },
+  "instrucao_separacao": "Usar cnpj_root_map.json para filiais. Classificar por GroupName da OCRG. CNPJs sem match = Não Identificado.",
+  "resumo_erros": [
+    {
+      "categoria": "Mapeamento de Item",
+      "quantidade": 1275,
+      "detalhes": [
+        {
+          "msg": "Item 0005 não encontrado no depósito 01",
+          "qtd": 221
+        },
+        {
+          "msg": "Produto 17865843000057 não encontrado no SAP",
+          "qtd": 238
+        },
+        {
+          "msg": "Produto 90896187 não encontrado (Zaragoza)",
+          "qtd": 698
+        }
+      ]
+    },
+    {
+      "categoria": "Cadastro/Sync",
+      "quantidade": 102,
+      "msg": "Registro do cliente não encontrado"
+    },
+    {
+      "categoria": "SAP Config",
+      "quantidade": 51,
+      "msg": "Período de lançamento bloqueado"
+    },
+    {
+      "categoria": "Negócio/Crédito",
+      "quantidade": 17,
+      "msg": "Bloqueio de Crédito/Cobrança"
+    }
+  ]
+}
