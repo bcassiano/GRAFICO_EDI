@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [1.3.2] - 2026-03-06
+### Corrigido
+- Restabelecimento do layout premium **Glassmorphism** (Dashboard Moderno) via rollback para a tag estável `v3.0.1`.
+- Sincronização automática do `public/index.html` com a versão moderna injetada por dados dinâmicos, garantindo que o Firebase Host sirva o visual correto.
+
 ## [1.3.1] - 2026-03-06
 ### Corrigido
 - Fix no carregamento do `cnpj_root_map.json` para usar caminho absoluto, garantindo funcionamento em deploy/automação.
