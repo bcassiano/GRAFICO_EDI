@@ -93,10 +93,9 @@ def get_sap_data(cnpj_list):
                 ISNULL(T0.LicTradNum, '') as LicTradNum,
                 ISNULL(T1.TaxId0, '') as TaxId0,
                 ISNULL(T1.TaxId4, '') as TaxId4,
-                ISNULL(T2.GroupName, 'Sem Grupo') as GroupName
+                T0.GroupCode as GroupCode
             FROM OCRD T0
             LEFT JOIN CRD7 T1 ON T0.CardCode = T1.CardCode
-            LEFT JOIN OCRG T2 ON T0.GroupCode = T2.GroupCode
             WHERE
                 REPLACE(REPLACE(REPLACE(ISNULL(T0.CardFName,''),'.',''),'/',''),'-','') IN ('{in_clause}')
              OR REPLACE(REPLACE(REPLACE(ISNULL(T0.LicTradNum,''),'.',''),'/',''),'-','') IN ('{in_clause}')
@@ -113,10 +112,24 @@ def get_sap_data(cnpj_list):
             if not results: continue
             for row in results:
                 card_code = row.get('CardCode', '')
+                c_name = row.get('CardName', '').upper()
+                g_code = row.get('GroupCode')
+                
+                # Definir grupo fallback
+                group_name = 'Outros'
+                if 'ATACADAO' in c_name or 'WMS ' in c_name: group_name = 'ATACADAO SP'
+                elif 'SENDAS' in c_name or 'ASSAI' in c_name: group_name = 'ASSAI SP'
+                elif 'SHIBATA' in c_name: group_name = 'SHIBATA'
+                elif 'TENDA' in c_name: group_name = 'TENDA'
+                elif 'NAGUMO' in c_name: group_name = 'NAGUMO'
+                elif 'CARREFOUR' in c_name: group_name = 'CARREFOUR SP'
+                elif 'ZARAGOZA' in c_name: group_name = 'ZARAGOZA'
+                elif g_code: group_name = f'Grupo {g_code}'
+
                 stats = {
                     'CardName': row.get('CardName'),
                     'CardCode': card_code,
-                    'GroupName': row.get('GroupName')
+                    'GroupName': group_name
                 }
                 matched_originals = set()
                 fields_to_check = [row.get('CardFName', ''), row.get('LicTradNum', ''), row.get('TaxId0', ''), row.get('TaxId4', '')]
@@ -284,6 +297,8 @@ def process_logs(start_date, end_date):
     CNPJ_ROOT_MAP = {
         "01157555": { "CardCode": "C001340", "CardName": "TENDA ATACADO SA",               "GroupName": "TENDA"       },
         "93209170": { "CardCode": "C008465", "CardName": "WMS SUPERMERCADOS DO BRASIL LTDA", "GroupName": "ATACADAO SP" },
+        "06057223": { "CardCode": "C005105", "CardName": "SENDAS DISTRIBUIDORA S/A",         "GroupName": "ASSAI SP"    },
+        "93209765": { "CardCode": "C004300", "CardName": "ATACADAO S.A.",                    "GroupName": "ATACADAO SP" },
     }
 
     for cnpj in unique_cnpjs:
