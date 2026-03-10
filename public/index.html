@@ -48,8 +48,11 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
     <!-- SSO: JWT Decode & Signature Validation -->
-    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@4.0.0/build/cjs/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@4.0.0/build/with-eyeballs/index.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jose@5.2.3/dist/browser/index.bundle.min.js"></script>
+
+    <!-- Chart.js para indicadores -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Firebase SDK (Compat Version for Vanilla JS) -->
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -502,6 +505,7 @@
             let chartInstance = null;
             return {
                 rawGroupData: [],
+                toast: { visible: false, message: '' },
 
                 isLoading: false,
                 isSearching: false,

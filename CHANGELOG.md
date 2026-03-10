@@ -1,4 +1,12 @@
 # CHANGELOG
+ 
+## [1.4.2] - 2026-03-10
+### Corrigido
+- Ajuste na `Content Security Policy` (CSP) para permitir o carregamento de scripts, fontes e conectividade com CDNs externos (`jsdelivr`, `gstatic`, `perplexity`).
+- Resolução do erro `exports is not defined` através da alteração do bundle do `jwt-decode` para uma versão UMD compatível com navegadores.
+- Adição da dependência do `Chart.js` no `index.html`, corrigindo falhas na renderização de indicadores.
+- Inicialização do estado `toast` no Alpine.js, eliminando erros de referência (`toast is not defined`).
+
 
 ## [1.4.1] - 2026-03-10
 ### Corrigido
