@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Análise EDI - GRAFICO_EDI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .animate-enter {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: enter 0.4s ease forwards;
+        }
+
+        @keyframes enter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen p-4 md:p-8" x-data="reportData()">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 animate-enter">
+            <h1 class="text-3xl font-bold tracking-tight">Relatório de Análise EDI</h1>
+            <p class="text-slate-500 mt-1">Status do sistema e integração SAP</p>
+        </header>
+
+        <main x-show="!isSearching" class="space-y-6">
+            <template x-for="group in filteredGroups" :key="group.groupName">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6">
+                        <h2 class="text-xl font-semibold" x-text="group.groupName"></h2>
+                        <div class="mt-4 grid grid-cols-3 gap-4">
+                            <div class="p-4 bg-green-50 rounded-xl">
+                                <span class="block text-sm text-green-600 font-medium">Sucessos</span>
+                                <span class="text-2xl font-bold text-green-700" x-text="group.totalSuccess"></span>
+                            </div>
+                            <div class="p-4 bg-red-50 rounded-xl">
+                                <span class="block text-sm text-red-600 font-medium">Erros</span>
+                                <span class="text-2xl font-bold text-red-700" x-text="group.totalError"></span>
+                            </div>
+                            <div class="p-4 bg-blue-50 rounded-xl">
+                                <span class="block text-sm text-blue-600 font-medium">Recuperados</span>
+                                <span class="text-2xl font-bold text-blue-700" x-text="group.totalRecovered"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </main>
+    </div>
+
+    <script>
+        function reportData() {
+            return {
+                rawGroupData: [
+    {
+        "groupName": "ASSAI  SP",
+        "totalSuccess": 0,
+        "totalError": 1,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C009397] SENDAS DISTRIBUIDORA S/A",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17897844304315 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "21271171"
+                ],
+                "last_transaction_date": "2026-03-02 00:00"
+            }
+        ]
+    },
+    {
+        "groupName": "SEMAR",
+        "totalSuccess": 0,
+        "totalError": 27,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C002255] J.G.G. SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010030"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C014261] COMERCIAL MELHOR LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010017"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C012643] SUPERMERCADO SEMAR DE CEZAR DE SOUSA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010019"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C012570] COMERCIAL COMPRE MELHOR DE GENEROS ALIMENTICIOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010018"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C006710] COMERCIAL MATRIT LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010001"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C002884] COMERCIAL MELHOR LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010005"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C002885] COMERCIAL MATRIT LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010004"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C001509] COMERCIAL KEYPAR REPRESENTACOES E SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010029"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C013108] COMERCIAL COMPRE MELHOR DE GENEROS ALIMENTICIOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010021"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C002672] J.G.G. SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010031"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C004302] COMERCIAL MATRIT LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010006"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C003998] COMERCIAL SEMAR DE PINDA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010032"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C007701] COMERCIAL SEMAR DE PINDA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010033"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C013360] SUPERMERCADO SEMAR DE CEZAR DE SOUZA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010022"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C012644] COMERCIAL MELHOR LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010020"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C014318] SUPERMERCADO SEMAR DE SAO SEBASTIAO LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010023"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C009296] COMERCIAL MELHOR LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010036"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C011697] SUPERMERCADO SEMAR DE CEZAR DE SOUZA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010007"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C014587] SUPERMERCADO SEMAR DE SAO SEBASTIAO LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010025"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C006711] SUPERMERCADO SEMAR DE CEZAR DE SOUZA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "10000515 - Item 0005 não encontrado no depósito 01": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010008"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C015793] COMERCIAL KEYPAR REPRESENTACOES E SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010026"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C004961] COMERCIAL SEMAR DE PINDA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010010"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C004294] COMERCIAL SEMAR DE PINDA LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010011"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C006480] SUPERMERCADO SEMAR DE SAO SEBASTIAO LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010012"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C005338] J.G.G. SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010013"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C004293] COMERCIAL KEYPAR REPRESENTACOES E SUPERMERCADOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010014"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            },
+            {
+                "label": "[C007379] COMERCIAL COMPRE MELHOR DE GENEROS ALIMENTICIOS LTDA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 17865843000057 não encontrado ou in..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "458540010016"
+                ],
+                "last_transaction_date": "2026-03-03 00:00"
+            }
+        ]
+    },
+    {
+        "groupName": "TENDA",
+        "totalSuccess": 21,
+        "totalError": 1,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C008255] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011869"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C007764] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011868"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C007770] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011867"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C003754] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011866"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001779] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011865"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C007531] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011864"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001759] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011863"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013851] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011862"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013525] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011861"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C012948] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011860"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C012774] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011859"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C009076] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011858"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006428] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011857"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006285] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011856"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006179] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011855"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005331] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011854"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006491] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011853"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005185] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011852"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001340] TENDA ATACADO SA",
+                "success": 1,
+                "error": 1,
+                "error_types": {
+                    "Produto cod 456 inativo)": 1
+                },
+                "success_orders": [
+                    "6003011851"
+                ],
+                "error_orders": [
+                    "999999"
+                ],
+                "last_transaction_date": "2026-03-05 12:00"
+            },
+            {
+                "label": "[C005271] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011850"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005270] TENDA ATACADO SA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "6003011849"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            }
+        ]
+    },
+    {
+        "groupName": "ZARAGOZA",
+        "totalSuccess": 6,
+        "totalError": 6,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C007286] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341853"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013010] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341854"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C012419] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341855"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C016199] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341858"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013562] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341856"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C015412] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341933"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001320] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341935"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C000131] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341934"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C008673] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341949"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C004786] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341950"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C008671] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "341948"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C004156] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                "success": 0,
+                "error": 1,
+                "error_types": {
+                    "Produto código 90896187 não encontrado ou inativo ..": 1
+                },
+                "success_orders": [],
+                "error_orders": [
+                    "341953"
+                ],
+                "last_transaction_date": "2026-03-04 00:00"
+            }
+        ]
+    },
+    {
+        "groupName": "Não Identificado (API/Outros)",
+        "totalSuccess": 1,
+        "totalError": 1,
+        "totalRecovered": 1,
+        "clients": [
+            {
+                "label": "[CNPJ_04128563000110] AES TIETE ENERGIA S.A.",
+                "success": 1,
+                "error": 1,
+                "error_types": {
+                    "Produto cod 123 nao encontrado)": 1
+                },
+                "success_orders": [
+                    "341854"
+                ],
+                "error_orders": [
+                    "341854"
+                ],
+                "last_transaction_date": "2026-03-05 11:00"
+            }
+        ]
+    },
+    {
+        "groupName": "CARREFOUR SP",
+        "totalSuccess": 3,
+        "totalError": 0,
+        "totalRecovered": 0,
+        "clients": [
+            {
+                "label": "[C005746] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000127100675218"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:15"
+            },
+            {
+                "label": "[C005702] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000105100673801"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:42"
+            },
+            {
+                "label": "[C005704] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                "success": 1,
+                "error": 0,
+                "error_types": {},
+                "success_orders": [
+                    "000125100676490"
+                ],
+                "error_orders": [],
+                "last_transaction_date": "2026-03-06 11:47"
+            }
+        ]
+    }
+],
+            {
+                "label": "[C007764] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011868"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C007770] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011867"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C003754] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011866"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001779] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011865"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C007531] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011864"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001759] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011863"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013851] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011862"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C013525] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011861"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C012948] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011860"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C012774] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011859"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C009076] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011858"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006428] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011857"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006285] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011856"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006179] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011855"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005331] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011854"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C006491] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011853"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005185] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011852"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C001340] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 1,
+                            "error_types": {
+                    "Produto cod 456 inativo)": 1
+                },
+                "success_orders": [
+                    "6003011851"
+                ],
+                    "error_orders": [
+                        "999999"
+                    ],
+                        "last_transaction_date": "2026-03-05 12:00"
+            },
+            {
+                "label": "[C005271] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011850"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            },
+            {
+                "label": "[C005270] TENDA ATACADO SA",
+                    "success": 1,
+                        "error": 0,
+                            "error_types": { },
+                "success_orders": [
+                    "6003011849"
+                ],
+                    "error_orders": [],
+                        "last_transaction_date": "2026-03-04 00:00"
+            }
+        ]
+        },
+        {
+            "groupName": "ZARAGOZA",
+                "totalSuccess": 6,
+                    "totalError": 6,
+                        "totalRecovered": 0,
+                            "clients": [
+                                {
+                                    "label": "[C007286] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341853"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C013010] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341854"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C012419] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341855"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C016199] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341858"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C013562] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341856"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C015412] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341933"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C001320] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341935"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C000131] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341934"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C008673] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341949"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C004786] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341950"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C008671] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "341948"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                },
+                                {
+                                    "label": "[C004156] COMERCIAL ZARAGOZA IMPORTACAO E EXPORTACAO LIMITADA",
+                                    "success": 0,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto código 90896187 não encontrado ou inativo ..": 1
+                                    },
+                                    "success_orders": [],
+                                    "error_orders": [
+                                        "341953"
+                                    ],
+                                    "last_transaction_date": "2026-03-04 00:00"
+                                }
+                            ]
+        },
+        {
+            "groupName": "Não Identificado (API/Outros)",
+                "totalSuccess": 1,
+                    "totalError": 1,
+                        "totalRecovered": 1,
+                            "clients": [
+                                {
+                                    "label": "[CNPJ_04128563000110] AES TIETE ENERGIA S.A.",
+                                    "success": 1,
+                                    "error": 1,
+                                    "error_types": {
+                                        "Produto cod 123 nao encontrado)": 1
+                                    },
+                                    "success_orders": [
+                                        "341854"
+                                    ],
+                                    "error_orders": [
+                                        "341854"
+                                    ],
+                                    "last_transaction_date": "2026-03-05 11:00"
+                                }
+                            ]
+        },
+        {
+            "groupName": "CARREFOUR SP",
+                "totalSuccess": 3,
+                    "totalError": 0,
+                        "totalRecovered": 0,
+                            "clients": [
+                                {
+                                    "label": "[C005746] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "000127100675218"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-06 11:15"
+                                },
+                                {
+                                    "label": "[C005702] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "000105100673801"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-06 11:42"
+                                },
+                                {
+                                    "label": "[C005704] CARREFOUR COMERCIO E INDUSTRIA LTDA",
+                                    "success": 1,
+                                    "error": 0,
+                                    "error_types": {},
+                                    "success_orders": [
+                                        "000125100676490"
+                                    ],
+                                    "error_orders": [],
+                                    "last_transaction_date": "2026-03-06 11:47"
+                                }
+                            ]
+        }
+],
+        search: '',
+            startDate: '',
+                endDate: '',
+                    isSearching: false,
+                        get filteredGroups() {
+            if (!this.search) return this.rawGroupData;
+            return this.rawGroupData.filter(g =>
+                g.groupName.toLowerCase().includes(this.search.toLowerCase()) ||
+                g.clients.some(c => c.label.toLowerCase().includes(this.search.toLowerCase()))
+            );
+        },
+                get dateRangeText() {
+            return this.startDate && this.endDate ? `${this.startDate} até ${this.endDate}` : 'Período não definido';
+        }
+            }
+        }
+    </script>
+</body>
+
+</html>

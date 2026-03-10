@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [1.4.1] - 2026-03-10
+### Corrigido
+- Removidas datas preenchidas (hardcoded) na carga inicial do dashboard para garantir que o usuário selecione explicitamente o período.
+
+## [1.4.0] - 2026-03-10
+### Adicionado
+- Implementação de **Single Sign-On (SSO)** via JWT para proteção do dashboard.
+- Mecanismo de captura de token via URL e persistência com fallback em `localStorage`.
+- Validação de claims de segurança (`iss`, `aud`, `exp`) no frontend.
+- Script utilitário `public/generate_test_token.py` para testes de integração local.
+### Segurança
+- Configuração de headers restritivos (`CSP`, `HSTS`, `X-Frame-Options`) no `firebase.json`.
+- Proteção contra renderização de dados sensíveis sem autorização explícita (X-Cloak + IsAuthorized).
+
 ## [1.3.2] - 2026-03-06
 ### Corrigido
 - Restabelecimento do layout premium **Glassmorphism** (Dashboard Moderno) via rollback para a tag estável `v3.0.1`.
